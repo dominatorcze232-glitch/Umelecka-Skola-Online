@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Škola Online</title>
+    <!-- Tailwind CSS pro moderní vzhled -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800">
+
+    <!-- PŘIHLAŠOVACÍ OBRAZOVKA -->
+    <div id="login-screen" class="flex items-center justify-center min-h-screen">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-96">
+            <h1 class="text-2xl font-bold text-center mb-6 text-blue-600">Škola Online</h1>
+            
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Jméno a příjmení</label>
+                    <input type="text" id="login-name" required class="w-full p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Zadejte své jméno...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Heslo</label>
+                    <input type="password" id="login-password" required class="w-full p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Zadejte heslo...">
+                </div>
+                <div id="login-error" class="text-red-500 text-sm hidden text-center"></div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium transition">Přihlásit se</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- HLAVNÍ APLIKACE (skrytá) -->
+    <div id="app-screen" class="hidden min-h-screen flex flex-col">
+        <!-- Horní lišta -->
+        <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
+            <h2 class="text-xl font-bold text-blue-600">Škola Online</h2>
+            <div class="flex items-center gap-4">
+                <span id="user-role-badge" class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold"></span>
+                <button onclick="logout()" class="text-red-600 hover:text-red-800 text-sm font-medium">Odhlásit se</button>
+            </div>
+        </header>
+
+        <!-- Obsah -->
+        <main class="flex-1 max-w-5xl w-full mx-auto p-6">
+            
+            <!-- ŽÁKOVSKÁ SEKCE -->
+            <div id="student-section" class="hidden space-y-6">
+                <div class="flex gap-2 border-b border-slate-300 pb-2">
+                    <button onclick="switchStudentTab('grades')" id="tab-grades" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">Známky</button>
+                    <button onclick="switchStudentTab('homework')" id="tab-homework" class="px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200">Úkoly</button>
+                </div>
+
+                <div id="content-grades" class="bg-white p-6 rounded-xl shadow">
+                    <h3 class="text-lg font-bold mb-4">Přehled známek</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-slate-500">
+                                    <th class="py-2">Předmět</th>
+                                    <th class="py-2">Známky</th>
+                                    <th class="py-2">Průměr</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-grades-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="content-homework" class="hidden bg-white p-6 rounded-xl shadow">
+                    <h3 class="text-lg font-bold mb-4">Domácí úkoly</h3>
+                    <div id="student-homework-list" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- UČITELSKÁ SEKCE -->
+            <div id="teacher-section" class="hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow">
+                        <h3 class="text-lg font-bold mb-4 text-emerald-700">Zapsat známku žákovi</h3>
+                        <form onsubmit="addGrade(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600">Žák</label>
+                                <select id="grade-student" class="w-full mt-1 p-2 border border-slate-300 rounded-lg"></select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600">Předmět</label>
+                                <select id="grade-subject" class="w-full mt-1 p-2 border border-slate-300 rounded-lg">
+                                    <option value="Matematika">Matematika</option>
+                                    <option value="Český jazyk">Český jazyk</option>
+                                    <option value="Anglický jazyk">Anglický jazyk</option>
+                                    <option value="Fyzika">Fyzika</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600">Známka (1-5)</label>
+                                <select id="grade-value" class="w-full mt-1 p-2 border border-slate-300 rounded-lg">
+                                    <option value="1">1 (Výborně)</option>
+                                    <option value="2">2 (Chvalitebně)</option>
+                                    <option value="3">3 (Dobře)</option>
+                                    <option value="4">4 (Dostatečně)</option>
+                                    <option value="5">5 (Nedostatečně)</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 font-medium transition">Uložit známku</button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow">
+                        <h3 class="text-lg font-bold mb-4 text-emerald-700">Zadat nový domácí úkol</h3>
+                        <form onsubmit="addHomework(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600">Předmět</label>
+                                <select id="hw-subject" class="w-full mt-1 p-2 border border-slate-300 rounded-lg">
+                                    <option value="Matematika">Matematika</option>
+                                    <option value="Český jazyk">Český jazyk</option>
+                                    <option value="Anglický jazyk">Anglický jazyk</option>
+                                    <option value="Fyzika">Fyzika</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600">Zadání úkolu</label>
+                                <textarea id="hw-text" rows="3" class="w-full mt-1 p-2 border border-slate-300 rounded-lg" placeholder="Napište zadání..." required></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 font-medium transition">Zveřejnit úkol</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN / ŘEDITELSKÁ SEKCE -->
+            <div id="admin-section" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow">
+                    <h3 class="text-lg font-bold mb-4 text-purple-700">Vytvořit nový uživatelský účet</h3>
+                    <form onsubmit="createUser(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600">Jméno a příjmení</label>
+                            <input type="text" id="new-name" required class="w-full mt-1 p-2 border border-slate-300 rounded-lg" placeholder="Např. Petr Novotný">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600">Heslo</label>
+                            <input type="text" id="new-pass" required class="w-full mt-1 p-2 border border-slate-300 rounded-lg" placeholder="Zadejte heslo">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600">Role</label>
+                            <select id="new-role" class="w-full mt-1 p-2 border border-slate-300 rounded-lg">
+                                <option value="student">Žák</option>
+                                <option value="teacher">Učitel</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 font-medium transition h-[42px]">Vytvořit účet</button>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow">
+                    <h3 class="text-lg font-bold mb-4">Seznam všech uživatelů v systému</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-slate-500">
+                                    <th class="py-2">Jméno</th>
+                                    <th class="py-2">Heslo</th>
+                                    <th class="py-2">Role</th>
+                                    <th class="py-2">Akce</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- FIREBASE A HLAVNÍ LOGIKA -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHwlBOpTekJ98oUdTv8UrzRBLD5txuKjE",
+            authDomain: "skola-online-13966.firebaseapp.com",
+            projectId: "skola-online-13966",
+            storageBucket: "skola-online-13966.firebasestorage.app",
+            messagingSenderId: "865191293486",
+            appId: "1:865191293486:web:bbf31f585e4dac7dfc65bf"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const initialData = {
+            users: [
+                { name: "Červeňák Dominik", pass: "6852", role: "admin" },
+                { name: "Mgr. Jan Svoboda", pass: "ucitel123", role: "teacher" },
+                { name: "Jaroslav Žák", pass: "zaci123", role: "student" }
+            ],
+            grades: {
+                "Jaroslav Žák": {
+                    "Matematika": [1, 2],
+                    "Český jazyk": [3]
+                }
+            },
+            homework: [
+                { subject: "Matematika", text: "Vypočítejte příklady na str. 10." }
+            ]
+        };
+
+        async function getData() {
+            try {
+                const docRef = doc(db, "school", "state");
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    return docSnap.data();
+                } else {
+                    await setDoc(docRef, initialData);
+                    return initialData;
+                }
+            } catch (e) {
+                console.error("Chyba při čtení z Firebase:", e);
+                return initialData;
+            }
+        }
+
+        async function saveData(data) {
+            try {
+                const docRef = doc(db, "school", "state");
+                await setDoc(docRef, data);
+            } catch (e) {
+                console.error("Chyba při zápisu do Firebase:", e);
+                alert("Chyba při ukládání dat do databáze!");
+            }
+        }
+
+        let currentUser = null;
+
+        window.handleLogin = async function(event) {
+            event.preventDefault();
+            const nameInput = document.getElementById('login-name').value.trim();
+            const passInput = document.getElementById('login-password').value.trim();
+            const errorDiv = document.getElementById('login-error');
+
+            const data = await getData();
+            const foundUser = data.users.find(u => u.name.toLowerCase() === nameInput.toLowerCase() && u.pass === passInput);
+
+            if (foundUser) {
+                currentUser = foundUser;
+                errorDiv.classList.add('hidden');
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+                initApp();
+            } else {
+                errorDiv.innerText = "Nesprávné jméno nebo heslo!";
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        window.logout = function() {
+            currentUser = null;
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('app-screen').classList.add('hidden');
+            document.getElementById('login-name').value = '';
+            document.getElementById('login-password').value = '';
+        }
+
+        async function initApp() {
+            document.getElementById('student-section').classList.add('hidden');
+            document.getElementById('teacher-section').classList.add('hidden');
+            document.getElementById('admin-section').classList.add('hidden');
+
+            if (currentUser.role === 'admin') {
+                document.getElementById('user-role-badge').innerText = `Ředitel: ${currentUser.name}`;
+                document.getElementById('admin-section').classList.remove('hidden');
+                await renderAdminView();
+            } else if (currentUser.role === 'teacher') {
+                document.getElementById('user-role-badge').innerText = `Učitel: ${currentUser.name}`;
+                document.getElementById('teacher-section').classList.remove('hidden');
+                await renderTeacherView();
+            } else if (currentUser.role === 'student') {
+                document.getElementById('user-role-badge').innerText = `Žák: ${currentUser.name}`;
+                document.getElementById('student-section').classList.remove('hidden');
+                await renderStudentView();
+            }
+        }
+
+        window.switchStudentTab = function(tab) {
+            const gradesTab = document.getElementById('tab-grades');
+            const hwTab = document.getElementById('tab-homework');
+            const gradesContent = document.getElementById('content-grades');
+            const hwContent = document.getElementById('content-homework');
+
+            if (tab === 'grades') {
+                gradesTab.className = "px-4 py-2 bg-blue-600 text-white rounded-lg font-medium";
+                hwTab.className = "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200";
+                gradesContent.classList.remove('hidden');
+                hwContent.classList.add('hidden');
+            } else {
+                hwTab.className = "px-4 py-2 bg-blue-600 text-white rounded-lg font-medium";
+                gradesTab.className = "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200";
+                hwContent.classList.remove('hidden');
+                gradesContent.classList.add('hidden');
+            }
+        }
+
+        window.renderStudentView = async function() {
+            const data = await getData();
+            const studentGrades = data.grades[currentUser.name] || {};
+            
+            const gradesList = document.getElementById('student-grades-list');
+            gradesList.innerHTML = '';
+            
+            const subjects = ["Matematika", "Český jazyk", "Anglický jazyk", "Fyzika"];
+            subjects.forEach(sub => {
+                const grades = studentGrades[sub] || [];
+                let avg = '-';
+                if (grades.length > 0) {
+                    const sum = grades.reduce((a, b) => a + b, 0);
+                    avg = (sum / grades.length).toFixed(2);
+                }
+                gradesList.innerHTML += `
+                    <tr class="border-b border-slate-100">
+                        <td class="py-3 font-medium">${sub}</td>
+                        <td class="py-3"><span class="bg-slate-100 px-2 py-1 rounded text-blue-600 font-semibold">${grades.join(', ') || 'Žádné známky'}</span></td>
+                        <td class="py-3 font-bold text-slate-700">${avg}</td>
+                    </tr>
+                `;
+            });
+
+            const hwList = document.getElementById('student-homework-list');
+            hwList.innerHTML = '';
+            if (data.homework.length === 0) {
+                hwList.innerHTML = '<p class="text-slate-500">Žádné domácí úkoly.</p>';
+            } else {
+                data.homework.forEach(hw => {
+                    hwList.innerHTML += `
+                        <div class="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                            <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">${hw.subject}</span>
+                            <p class="mt-1 text-slate-700">${hw.text}</p>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        window.renderTeacherView = async function() {
+            const data = await getData();
+            const studentSelect = document.getElementById('grade-student');
+            studentSelect.innerHTML = '';
+            
+            const students = data.users.filter(u => u.role === 'student');
+            if (students.length === 0) {
+                studentSelect.innerHTML = '<option disabled>Žádní žáci v systému</option>';
+            } else {
+                students.forEach(s => {
+                    studentSelect.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+                });
+            }
+        }
+
+        window.addGrade = async function(event) {
+            event.preventDefault();
+            const studentName = document.getElementById('grade-student').value;
+            const subject = document.getElementById('grade-subject').value;
+            const value = parseInt(document.getElementById('grade-value').value);
+
+            let data = await getData();
+            if (!data.grades[studentName]) {
+                data.grades[studentName] = {};
+            }
+            if (!data.grades[studentName][subject]) {
+                data.grades[studentName][subject] = [];
+            }
+            data.grades[studentName][subject].push(value);
+            await saveData(data);
+
+            alert(`Známka byla úspěšně zapsána žákovi ${studentName}!`);
+        }
+
+        window.addHomework = async function(event) {
+            event.preventDefault();
+            const subject = document.getElementById('hw-subject').value;
+            const text = document.getElementById('hw-text').value;
+
+            let data = await getData();
+            data.homework.push({ subject, text });
+            await saveData(data);
+
+            document.getElementById('hw-text').value = '';
+            alert('Domácí úkol byl zveřejněn!');
+        }
+
+        window.renderAdminView = async function() {
+            const data = await getData();
+            const usersList = document.getElementById('admin-users-list');
+            usersList.innerHTML = '';
+
+            data.users.forEach((u, index) => {
+                let roleBadge = '<span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">Ředitel</span>';
+                if (u.role === 'teacher') roleBadge = '<span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-bold">Učitel</span>';
+                if (u.role === 'student') roleBadge = '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">Žák</span>';
+
+                let deleteBtn = u.role === 'admin' ? '' : `<button onclick="deleteUser(${index})" class="text-red-600 hover:text-red-800 text-sm font-medium">Smazat</button>`;
+
+                usersList.innerHTML += `
+                    <tr class="border-b border-slate-100">
+                        <td class="py-3 font-medium">${u.name}</td>
+                        <td class="py-3 text-slate-500">${u.pass}</td>
+                        <td class="py-3">${roleBadge}</td>
+                        <td class="py-3">${deleteBtn}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.createUser = async function(event) {
+            event.preventDefault();
+            const name = document.getElementById('new-name').value.trim();
+            const pass = document.getElementById('new-pass').value.trim();
+            const role = document.getElementById('new-role').value;
+
+            let data = await getData();
+            
+            if (data.users.some(u => u.name.toLowerCase() === name.toLowerCase())) {
+                alert('Uživatel s tímto jménem již existuje!');
+                return;
+            }
+
+            data.users.push({ name, pass, role });
+            await saveData(data);
+
+            document.getElementById('new-name').value = '';
+            document.getElementById('new-pass').value = '';
+            await renderAdminView();
+            alert(`Účet pro ${name} byl vytvořen.`);
+        }
+
+        window.deleteUser = async function(index) {
+            let data = await getData();
+            const deletedUser = data.users[index].name;
+            data.users.splice(index, 1);
+            await saveData(data);
+            await renderAdminView();
+            alert(`Uživatel ${deletedUser} byl smazán.`);
+        }
+    </script>
+</body>
+</html>
