@@ -41,8 +41,14 @@
         </header>
 
         <!-- Obsah -->
-        <main class="flex-1 max-w-5xl w-full mx-auto p-6">
+        <main class="flex-1 max-w-5xl w-full mx-auto p-6 space-y-6">
             
+            <!-- Navigace pro Ředitele (přepínání mezi funkcemi Správa a Učitel) -->
+            <div id="director-nav" class="hidden flex gap-2 border-b border-slate-300 pb-2">
+                <button onclick="switchDirectorTab('admin')" id="dir-tab-admin" class="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium">Správa školy (Uživatelé a Předměty)</button>
+                <button onclick="switchDirectorTab('teacher')" id="dir-tab-teacher" class="px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200">Učitelský panel (Známky a Úkoly)</button>
+            </div>
+
             <!-- ŽÁKOVSKÁ SEKCE -->
             <div id="student-section" class="hidden space-y-6">
                 <div class="flex gap-2 border-b border-slate-300 pb-2">
@@ -72,7 +78,7 @@
                 </div>
             </div>
 
-            <!-- UČITELSKÁ SEKCE -->
+            <!-- UČITELSKÁ SEKCE (pro učitele a ředitele) -->
             <div id="teacher-section" class="hidden space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-white p-6 rounded-xl shadow">
@@ -84,12 +90,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600">Předmět</label>
-                                <select id="grade-subject" class="w-full mt-1 p-2 border border-slate-300 rounded-lg">
-                                    <option value="Matematika">Matematika</option>
-                                    <option value="Český jazyk">Český jazyk</option>
-                                    <option value="Anglický jazyk">Anglický jazyk</option>
-                                    <option value="Fyzika">Fyzika</option>
-                                </select>
+                                <select id="grade-subject" class="w-full mt-1 p-2 border border-slate-300 rounded-lg"></select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600">Známka (1-5)</label>
@@ -110,12 +111,7 @@
                         <form onsubmit="addHomework(event)" class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600">Předmět</label>
-                                <select id="hw-subject" class="w-full mt-1 p-2 border border-slate-300 rounded-lg">
-                                    <option value="Matematika">Matematika</option>
-                                    <option value="Český jazyk">Český jazyk</option>
-                                    <option value="Anglický jazyk">Anglický jazyk</option>
-                                    <option value="Fyzika">Fyzika</option>
-                                </select>
+                                <select id="hw-subject" class="w-full mt-1 p-2 border border-slate-300 rounded-lg"></select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600">Zadání úkolu</label>
@@ -129,6 +125,7 @@
 
             <!-- ADMIN / ŘEDITELSKÁ SEKCE -->
             <div id="admin-section" class="hidden space-y-6">
+                <!-- Vytvoření uživatele -->
                 <div class="bg-white p-6 rounded-xl shadow">
                     <h3 class="text-lg font-bold mb-4 text-purple-700">Vytvořit nový uživatelský účet</h3>
                     <form onsubmit="createUser(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -151,20 +148,50 @@
                     </form>
                 </div>
 
+                <!-- Vytvoření předmětu -->
                 <div class="bg-white p-6 rounded-xl shadow">
-                    <h3 class="text-lg font-bold mb-4">Seznam všech uživatelů v systému</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="border-b border-slate-200 text-slate-500">
-                                    <th class="py-2">Jméno</th>
-                                    <th class="py-2">Heslo</th>
-                                    <th class="py-2">Role</th>
-                                    <th class="py-2">Akce</th>
-                                </tr>
-                            </thead>
-                            <tbody id="admin-users-list"></tbody>
-                        </table>
+                    <h3 class="text-lg font-bold mb-4 text-purple-700">Vytvořit nový předmět</h3>
+                    <form onsubmit="createSubject(event)" class="flex gap-4 items-end">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-slate-600">Název předmětu</label>
+                            <input type="text" id="new-subject-name" required class="w-full mt-1 p-2 border border-slate-300 rounded-lg" placeholder="Např. Dějepis">
+                        </div>
+                        <button type="submit" class="bg-purple-600 text-white py-2 px-6 rounded-lg hover:bg-purple-700 font-medium transition h-[42px]">Přidat předmět</button>
+                    </form>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Seznam uživatelů -->
+                    <div class="bg-white p-6 rounded-xl shadow">
+                        <h3 class="text-lg font-bold mb-4">Seznam uživatelů</h3>
+                        <div class="overflow-x-auto max-h-60 overflow-y-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-slate-500">
+                                        <th class="py-2">Jméno</th>
+                                        <th class="py-2">Role</th>
+                                        <th class="py-2">Akce</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Seznam předmětů -->
+                    <div class="bg-white p-6 rounded-xl shadow">
+                        <h3 class="text-lg font-bold mb-4">Seznam předmětů</h3>
+                        <div class="overflow-x-auto max-h-60 overflow-y-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-slate-500">
+                                        <th class="py-2">Název předmětu</th>
+                                        <th class="py-2">Akce</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-subjects-list"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -191,19 +218,11 @@
 
         const initialData = {
             users: [
-                { name: "Červeňák Dominik", pass: "6852", role: "admin" },
-                { name: "Mgr. Jan Svoboda", pass: "ucitel123", role: "teacher" },
-                { name: "Jaroslav Žák", pass: "zaci123", role: "student" }
+                { name: "Červeňák Dominik", pass: "6852", role: "admin" }
             ],
-            grades: {
-                "Jaroslav Žák": {
-                    "Matematika": [1, 2],
-                    "Český jazyk": [3]
-                }
-            },
-            homework: [
-                { subject: "Matematika", text: "Vypočítejte příklady na str. 10." }
-            ]
+            subjects: [],
+            grades: {},
+            homework: []
         };
 
         async function getData() {
@@ -267,11 +286,13 @@
             document.getElementById('student-section').classList.add('hidden');
             document.getElementById('teacher-section').classList.add('hidden');
             document.getElementById('admin-section').classList.add('hidden');
+            document.getElementById('director-nav').classList.add('hidden');
 
             if (currentUser.role === 'admin') {
                 document.getElementById('user-role-badge').innerText = `Ředitel: ${currentUser.name}`;
-                document.getElementById('admin-section').classList.remove('hidden');
-                await renderAdminView();
+                document.getElementById('director-nav').classList.remove('hidden');
+                // Ředitel začíná na správě (admin tabu)
+                switchDirectorTab('admin');
             } else if (currentUser.role === 'teacher') {
                 document.getElementById('user-role-badge').innerText = `Učitel: ${currentUser.name}`;
                 document.getElementById('teacher-section').classList.remove('hidden');
@@ -283,6 +304,29 @@
             }
         }
 
+        // Přepínání záložek pro ředitele
+        window.switchDirectorTab = async function(tab) {
+            const adminTabBtn = document.getElementById('dir-tab-admin');
+            const teacherTabBtn = document.getElementById('dir-tab-teacher');
+            const adminSection = document.getElementById('admin-section');
+            const teacherSection = document.getElementById('teacher-section');
+
+            if (tab === 'admin') {
+                adminTabBtn.className = "px-4 py-2 bg-purple-600 text-white rounded-lg font-medium";
+                teacherTabBtn.className = "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200";
+                adminSection.classList.remove('hidden');
+                teacherSection.classList.add('hidden');
+                await renderAdminView();
+            } else {
+                teacherTabBtn.className = "px-4 py-2 bg-purple-600 text-white rounded-lg font-medium";
+                adminTabBtn.className = "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200";
+                teacherSection.classList.remove('hidden');
+                adminSection.classList.add('hidden');
+                await renderTeacherView();
+            }
+        }
+
+        // --- ŽÁK ---
         window.switchStudentTab = function(tab) {
             const gradesTab = document.getElementById('tab-grades');
             const hwTab = document.getElementById('tab-homework');
@@ -309,22 +353,25 @@
             const gradesList = document.getElementById('student-grades-list');
             gradesList.innerHTML = '';
             
-            const subjects = ["Matematika", "Český jazyk", "Anglický jazyk", "Fyzika"];
-            subjects.forEach(sub => {
-                const grades = studentGrades[sub] || [];
-                let avg = '-';
-                if (grades.length > 0) {
-                    const sum = grades.reduce((a, b) => a + b, 0);
-                    avg = (sum / grades.length).toFixed(2);
-                }
-                gradesList.innerHTML += `
-                    <tr class="border-b border-slate-100">
-                        <td class="py-3 font-medium">${sub}</td>
-                        <td class="py-3"><span class="bg-slate-100 px-2 py-1 rounded text-blue-600 font-semibold">${grades.join(', ') || 'Žádné známky'}</span></td>
-                        <td class="py-3 font-bold text-slate-700">${avg}</td>
-                    </tr>
-                `;
-            });
+            if (data.subjects.length === 0) {
+                gradesList.innerHTML = '<tr><td colspan="3" class="py-3 text-slate-500">Zatím nebyly vytvořeny žádné předměty.</td></tr>';
+            } else {
+                data.subjects.forEach(sub => {
+                    const grades = studentGrades[sub] || [];
+                    let avg = '-';
+                    if (grades.length > 0) {
+                        const sum = grades.reduce((a, b) => a + b, 0);
+                        avg = (sum / grades.length).toFixed(2);
+                    }
+                    gradesList.innerHTML += `
+                        <tr class="border-b border-slate-100">
+                            <td class="py-3 font-medium">${sub}</td>
+                            <td class="py-3"><span class="bg-slate-100 px-2 py-1 rounded text-blue-600 font-semibold">${grades.join(', ') || 'Žádné známky'}</span></td>
+                            <td class="py-3 font-bold text-slate-700">${avg}</td>
+                        </tr>
+                    `;
+                });
+            }
 
             const hwList = document.getElementById('student-homework-list');
             hwList.innerHTML = '';
@@ -342,11 +389,13 @@
             }
         }
 
+        // --- UČITEL / ŘEDITEL (Zadávání) ---
         window.renderTeacherView = async function() {
             const data = await getData();
+            
+            // Naplnění výběru žáků
             const studentSelect = document.getElementById('grade-student');
             studentSelect.innerHTML = '';
-            
             const students = data.users.filter(u => u.role === 'student');
             if (students.length === 0) {
                 studentSelect.innerHTML = '<option disabled>Žádní žáci v systému</option>';
@@ -355,6 +404,19 @@
                     studentSelect.innerHTML += `<option value="${s.name}">${s.name}</option>`;
                 });
             }
+
+            // Naplnění výběru předmětů
+            const subjectSelects = [document.getElementById('grade-subject'), document.getElementById('hw-subject')];
+            subjectSelects.forEach(sel => {
+                sel.innerHTML = '';
+                if (data.subjects.length === 0) {
+                    sel.innerHTML = '<option disabled>Žádné předměty</option>';
+                } else {
+                    data.subjects.forEach(sub => {
+                        sel.innerHTML += `<option value="${sub}">${sub}</option>`;
+                    });
+                }
+            });
         }
 
         window.addGrade = async function(event) {
@@ -389,11 +451,13 @@
             alert('Domácí úkol byl zveřejněn!');
         }
 
+        // --- ŘEDITEL (ADMIN) ---
         window.renderAdminView = async function() {
             const data = await getData();
+            
+            // Zobrazení uživatelů
             const usersList = document.getElementById('admin-users-list');
             usersList.innerHTML = '';
-
             data.users.forEach((u, index) => {
                 let roleBadge = '<span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">Ředitel</span>';
                 if (u.role === 'teacher') roleBadge = '<span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-bold">Učitel</span>';
@@ -404,12 +468,27 @@
                 usersList.innerHTML += `
                     <tr class="border-b border-slate-100">
                         <td class="py-3 font-medium">${u.name}</td>
-                        <td class="py-3 text-slate-500">${u.pass}</td>
                         <td class="py-3">${roleBadge}</td>
                         <td class="py-3">${deleteBtn}</td>
                     </tr>
                 `;
             });
+
+            // Zobrazení předmětů
+            const subjectsList = document.getElementById('admin-subjects-list');
+            subjectsList.innerHTML = '';
+            if (data.subjects.length === 0) {
+                subjectsList.innerHTML = '<tr><td colspan="2" class="py-3 text-slate-500">Zatím žádné předměty.</td></tr>';
+            } else {
+                data.subjects.forEach((sub, index) => {
+                    subjectsList.innerHTML += `
+                        <tr class="border-b border-slate-100">
+                            <td class="py-3 font-medium">${sub}</td>
+                            <td class="py-3"><button onclick="deleteSubject(${index})" class="text-red-600 hover:text-red-800 text-sm font-medium">Smazat</button></td>
+                        </tr>
+                    `;
+                });
+            }
         }
 
         window.createUser = async function(event) {
@@ -419,7 +498,6 @@
             const role = document.getElementById('new-role').value;
 
             let data = await getData();
-            
             if (data.users.some(u => u.name.toLowerCase() === name.toLowerCase())) {
                 alert('Uživatel s tímto jménem již existuje!');
                 return;
@@ -441,6 +519,33 @@
             await saveData(data);
             await renderAdminView();
             alert(`Uživatel ${deletedUser} byl smazán.`);
+        }
+
+        window.createSubject = async function(event) {
+            event.preventDefault();
+            const subName = document.getElementById('new-subject-name').value.trim();
+
+            let data = await getData();
+            if (data.subjects.includes(subName)) {
+                alert('Tento předmět již existuje!');
+                return;
+            }
+
+            data.subjects.push(subName);
+            await saveData(data);
+
+            document.getElementById('new-subject-name').value = '';
+            await renderAdminView();
+            alert(`Předmět "${subName}" byl vytvořen.`);
+        }
+
+        window.deleteSubject = async function(index) {
+            let data = await getData();
+            const deletedSub = data.subjects[index];
+            data.subjects.splice(index, 1);
+            await saveData(data);
+            await renderAdminView();
+            alert(`Předmět "${deletedSub}" byl smazán.`);
         }
     </script>
 </body>
