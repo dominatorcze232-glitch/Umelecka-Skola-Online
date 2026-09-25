@@ -4,610 +4,789 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Škola Online</title>
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS pro moderní vzhled -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase App (Modular) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-        // Konfigurace Firebase
-        const firebaseConfig = {
-            databaseURL: "https://skola-online-13966-default-rtdb.europe-west1.firebasedatabase.app/"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        // Globální stav aplikace
-        window.db = db;
-        window.dbRef = { ref, set, get, update, remove, onValue };
-        
-        // Spuštění aplikace po načtení skriptů
-        window.dispatchEvent(new Event('firebase-ready'));
-    </script>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+<body class="bg-slate-100 font-sans text-slate-800">
 
-    <!-- NAČÍTACÍ OBRAZOVKA -->
-    <div id="loading-screen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center text-white">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500 mb-4"></div>
-        <h2 class="text-xl font-semibold">Načítám Škola Online...</h2>
+    <!-- PŘIHLAŠOVACÍ OBRAZOVKA -->
+    <div id="login-screen" class="flex items-center justify-center min-h-screen">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-96">
+            <h1 class="text-2xl font-bold text-center mb-6 text-blue-600">Škola Online</h1>
+            
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Jméno a příjmení</label>
+                    <input type="text" id="login-name" required class="w-full p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Zadejte své jméno...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Heslo</label>
+                    <input type="password" id="login-password" required class="w-full p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Zadejte heslo...">
+                </div>
+                <div id="login-error" class="text-red-500 text-sm hidden text-center"></div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium transition">Přihlásit se</button>
+            </form>
+        </div>
     </div>
 
-    <!-- HLAVNÍ OBSAH (Skrytý do přihlášení) -->
-    <div id="app" class="hidden flex-col min-h-screen">
-        
-        <!-- NAVIGAČNÍ LIŠTA -->
-        <header class="bg-indigo-600 text-white shadow-md">
-            <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-                <div class="flex items-center space-x-3">
-                    <span class="text-2xl">🏫</span>
-                    <h1 class="text-xl font-bold tracking-wide">Škola Online</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span id="user-info" class="text-sm bg-indigo-700 px-3 py-1.5 rounded-full font-medium"></span>
-                    <button onclick="logout()" class="bg-indigo-500 hover:bg-indigo-400 text-white px-3.5 py-1.5 rounded-lg text-sm transition font-medium shadow-sm">Odhlásit</button>
-                </div>
+    <!-- HLAVNÍ APLIKACE (skrytá) -->
+    <div id="app-screen" class="hidden min-h-screen flex flex-col">
+        <!-- Horní lišta -->
+        <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
+            <h2 class="text-xl font-bold text-blue-600">Škola Online</h2>
+            <div class="flex items-center gap-4">
+                <span id="user-role-badge" class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold"></span>
+                <button onclick="logout()" class="text-red-600 hover:text-red-800 text-sm font-medium">Odhlásit se</button>
             </div>
         </header>
 
-        <!-- OBSAHOVÁ ČÁST -->
-        <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6">
+        <!-- Obsah -->
+        <main class="flex-1 max-w-5xl w-full mx-auto p-6 space-y-6">
             
-            <!-- SEKCE: PŘIHLÁŠENÍ -->
-            <div id="login-section" class="max-w-md mx-auto mt-12 bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
-                <div class="text-center mb-8">
-                    <div class="inline-block bg-indigo-50 text-indigo-600 p-3 rounded-2xl text-3xl mb-3 shadow-inner">🔐</div>
-                    <h2 class="text-2xl font-bold text-slate-900">Přihlášení do systému</h2>
-                    <p class="text-sm text-slate-500 mt-1">Zadejte své přihlašovací údaje</p>
+            <!-- Hlavní horní navigace (Přepínání mezi moduly pro ředitele/učitele) -->
+            <div id="main-nav" class="flex gap-2 border-b border-slate-300 pb-2"></div>
+
+            <!-- ŽÁKOVSKÁ SEKCE -->
+            <div id="student-section" class="hidden space-y-6">
+                <div class="flex gap-2 border-b border-slate-300 pb-2">
+                    <button onclick="switchStudentTab('grades')" id="stab-grades" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">Známky</button>
+                    <button onclick="switchStudentTab('homework')" id="stab-homework" class="px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200">Úkoly</button>
+                    <button onclick="switchStudentTab('absence')" id="stab-absence" class="px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200">Absence</button>
                 </div>
-                <form onsubmit="handleLogin(event)" class="space-y-5">
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Jméno a příjmení</label>
-                        <input type="text" id="login-name" required class="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="např. Červeňák Dominik">
+
+                <div id="content-grades" class="bg-white p-6 rounded-xl shadow">
+                    <h3 class="text-lg font-bold mb-4">Přehled známek</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-slate-500">
+                                    <th class="py-2">Předmět</th>
+                                    <th class="py-2">Známky a Informace</th>
+                                    <th class="py-2">Průměr</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-grades-list"></tbody>
+                        </table>
                     </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Heslo</label>
-                        <input type="password" id="login-pass" required class="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="••••">
-                    </div>
-                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-indigo-200">Přihlásit se</button>
-                </form>
-            </div>
-
-            <!-- SEKCE: PORTÁL ŽÁKA -->
-            <div id="student-portal" class="hidden space-y-6">
-                <div class="flex border-b border-slate-200 space-x-8">
-                    <button onclick="switchStudentTab('grades')" id="tab-btn-grades" class="pb-3 border-b-2 border-indigo-600 font-semibold text-indigo-600 transition">Známky</button>
-                    <button onclick="switchStudentTab('homework')" id="tab-btn-homework" class="pb-3 border-b-2 border-transparent font-semibold text-slate-500 hover:text-slate-800 transition">Domácí úkoly</button>
-                    <button onclick="switchStudentTab('attendance')" id="tab-btn-attendance" class="pb-3 border-b-2 border-transparent font-semibold text-slate-500 hover:text-slate-800 transition">Absence</button>
                 </div>
 
-                <!-- Tab: Známky -->
-                <div id="student-tab-grades" class="space-y-4">
-                    <h3 class="text-lg font-bold text-slate-800">Přehled známek a průměrů</h3>
-                    <div id="student-grades-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-                </div>
-
-                <!-- Tab: Úkoly -->
-                <div id="student-tab-homework" class="hidden space-y-4">
-                    <h3 class="text-lg font-bold text-slate-800">Domácí úkoly</h3>
+                <div id="content-homework" class="hidden bg-white p-6 rounded-xl shadow">
+                    <h3 class="text-lg font-bold mb-4">Domácí úkoly</h3>
                     <div id="student-homework-list" class="space-y-3"></div>
                 </div>
 
-                <!-- Tab: Absence -->
-                <div id="student-tab-attendance" class="hidden space-y-4">
-                    <h3 class="text-lg font-bold text-slate-800">Moje absence</h3>
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div id="content-absence" class="hidden bg-white p-6 rounded-xl shadow">
+                    <h3 class="text-lg font-bold mb-4">Moje absence</h3>
+                    <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
-                                <tr class="bg-slate-100 text-slate-600 text-sm border-b border-slate-200">
-                                    <th class="p-3">Datum</th>
-                                    <th class="p-3">Stav</th>
+                                <tr class="border-b border-slate-200 text-slate-500">
+                                    <th class="py-2">Stav / Značka</th>
+                                    <th class="py-2">Informace / Poznámka</th>
                                 </tr>
                             </thead>
-                            <tbody id="student-attendance-table" class="divide-y divide-slate-100"></tbody>
+                            <tbody id="student-absence-list"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- SEKCE: PORTÁL UČITELE -->
-            <div id="teacher-portal" class="hidden space-y-6">
-                <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-                    <button onclick="switchTeacherTab('grades')" id="t-tab-grades" class="px-4 py-2 rounded-xl font-semibold bg-indigo-600 text-white transition shadow-sm">Zápis známek</button>
-                    <button onclick="switchTeacherTab('homework')" id="t-tab-homework" class="px-4 py-2 rounded-xl font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition">Správa úkolů</button>
-                    <button onclick="switchTeacherTab('attendance')" id="t-tab-attendance" class="px-4 py-2 rounded-xl font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition">Zápis absence</button>
-                    <button onclick="switchTeacherTab('students')" id="t-tab-students" class="px-4 py-2 rounded-xl font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition">Karty žáků</button>
+            <!-- UČITELSKÁ / ŘEDITELSKÁ SEKCE (Pro správu známek, úkolů, absencí) -->
+            <div id="teacher-section" class="hidden space-y-6">
+                <!-- Tlačítka pro volbu podsekcí v učitelském módu -->
+                <div class="flex gap-2 flex-wrap bg-white p-3 rounded-xl shadow-sm">
+                    <button onclick="switchTeacherSubTab('grades')" id="t-subtab-grades" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm">Zapsat známky</button>
+                    <button onclick="switchTeacherSubTab('homework')" id="t-subtab-homework" class="px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100">Správa úkolů</button>
+                    <button onclick="switchTeacherSubTab('absence')" id="t-subtab-absence" class="px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100">Zapsat absenci</button>
+                    <button onclick="switchTeacherSubTab('students')" id="t-subtab-students" class="px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100">Seznam žáků (Známky & Absence)</button>
                 </div>
 
-                <!-- Učitel: Známky -->
-                <div id="teacher-tab-grades" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-xl">
-                    <h3 class="text-lg font-bold text-slate-800 mb-4">Zadat novou známku</h3>
-                    <form onsubmit="teacherAddGrade(event)" class="space-y-4">
+                <!-- 1. Zapsání známek vícero žákům -->
+                <div id="t-content-grades" class="bg-white p-6 rounded-xl shadow space-y-4">
+                    <h3 class="text-lg font-bold text-emerald-700">Zapsat známku vybraným žákům</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-1">Předmět</label>
-                            <select id="t-grade-subject" required class="w-full px-3 py-2 border rounded-xl"></select>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Předmět</label>
+                            <select id="multi-grade-subject" class="w-full p-2 border border-slate-300 rounded-lg"></select>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-1">Žák</label>
-                            <select id="t-grade-student" required class="w-full px-3 py-2 border rounded-xl"></select>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">Známka (1-5)</label>
-                                <input type="number" min="1" max="5" id="t-grade-val" required class="w-full px-3 py-2 border rounded-xl">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">Popis / Váha</label>
-                                <input type="text" id="t-grade-desc" placeholder="např. Test 1" required class="w-full px-3 py-2 border rounded-xl">
-                            </div>
-                        </div>
-                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition">Uložit známku</button>
-                    </form>
-                </div>
-
-                <!-- Učitel: Úkoly -->
-                <div id="teacher-tab-homework" class="hidden space-y-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-xl">
-                        <h3 class="text-lg font-bold text-slate-800 mb-4">Vytvořit domácí úkol</h3>
-                        <form onsubmit="teacherAddHomework(event)" class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">Předmět</label>
-                                <select id="t-hw-subject" required class="w-full px-3 py-2 border rounded-xl"></select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">Zadání úkolu</label>
-                                <textarea id="t-hw-text" rows="3" required class="w-full px-3 py-2 border rounded-xl" placeholder="Popis úkolu..."></textarea>
-                            </div>
-                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition">Zveřejnit úkol</button>
-                        </form>
-                    </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 class="text-lg font-bold text-slate-800 mb-4">Aktivní úkoly</h3>
-                        <div id="teacher-homework-list" class="space-y-3"></div>
-                    </div>
-                </div>
-
-                <!-- Učitel: Absence -->
-                <div id="teacher-tab-attendance" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-xl">
-                    <h3 class="text-lg font-bold text-slate-800 mb-4">Zapsat docházku</h3>
-                    <form onsubmit="teacherAddAttendance(event)" class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-1">Žák</label>
-                            <select id="t-att-student" required class="w-full px-3 py-2 border rounded-xl"></select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-1">Stav</label>
-                            <select id="t-att-status" class="w-full px-3 py-2 border rounded-xl">
-                                <option value="Omluvená absence">Omluvená absence</option>
-                                <option value="Neomluvená absence">Neomluvená absence</option>
-                                <option value="Pozdě">Pozdě</option>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Známka (1-5)</label>
+                            <select id="multi-grade-value" class="w-full p-2 border border-slate-300 rounded-lg">
+                                <option value="1">1 (Výborně)</option>
+                                <option value="2">2 (Chvalitebně)</option>
+                                <option value="3">3 (Dobře)</option>
+                                <option value="4">4 (Dostatečně)</option>
+                                <option value="5">5 (Nedostatečně)</option>
                             </select>
                         </div>
-                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition">Zaznamenat</button>
-                    </form>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Informace / Popis ke známce (např. Pololetní práce)</label>
+                        <input type="text" id="multi-grade-info" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Zadejte podrobnosti...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-2">Vyberte žáky (kliknutím označíte/odznačíte):</label>
+                        <div id="multi-grade-students-box" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50"></div>
+                    </div>
+                    <button onclick="saveMultiGrades()" class="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 font-medium transition">Pokračovat a uložit známky</button>
                 </div>
 
-                <!-- Učitel: Karty žáků -->
-                <div id="teacher-tab-students" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="text-lg font-bold text-slate-800 mb-4">Seznam žáků a správa záznamů</h3>
-                    <div id="teacher-students-list" class="space-y-4"></div>
+                <!-- 2. Správa úkolů -->
+                <div id="t-content-homework" class="hidden bg-white p-6 rounded-xl shadow space-y-4">
+                    <h3 class="text-lg font-bold text-emerald-700">Správa domácích úkolů</h3>
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                        <h4 id="hw-form-title" class="font-semibold text-slate-700">Vytvořit nový úkol</h4>
+                        <input type="hidden" id="edit-hw-index" value="-1">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Předmět</label>
+                            <select id="t-hw-subject" class="w-full p-2 border border-slate-300 rounded-lg"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Zadání úkolu</label>
+                            <textarea id="t-hw-text" rows="2" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Napište text úkolu..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-2">Pro koho je úkol určen:</label>
+                            <div id="t-hw-students-box" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-white"></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="saveHomeworkAction()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 font-medium text-sm">Uložit úkol</button>
+                            <button onclick="resetHwForm()" id="hw-cancel-btn" class="hidden bg-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-400 font-medium text-sm">Zrušit úpravu</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-slate-500">
+                                    <th class="py-2">Předmět</th>
+                                    <th class="py-2">Zadání</th>
+                                    <th class="py-2">Pro koho</th>
+                                    <th class="py-2">Akce</th>
+                                </tr>
+                            </thead>
+                            <tbody id="t-homework-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 3. Zapsání absence -->
+                <div id="t-content-absence" class="hidden bg-white p-6 rounded-xl shadow space-y-4">
+                    <h3 class="text-lg font-bold text-emerald-700">Zapsat absenci žákům</h3>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Stav / Značka absence</label>
+                        <select id="absence-status-val" class="w-full p-2 border border-slate-300 rounded-lg">
+                            <option value="/"> / (Přítomen / Omluven)</option>
+                            <option value="O"> O (Absence / Zameškaná hodina)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Informace / Poznámka k absenci</label>
+                        <input type="text" id="absence-info-val" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Např. Lékař, nemoc...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-2">Vyberte žáky:</label>
+                        <div id="absence-students-box" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50"></div>
+                    </div>
+                    <button onclick="saveAbsence()" class="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 font-medium transition">Uložit absenci</button>
+                </div>
+
+                <!-- 4. Seznam žáků (kliknutím na žáka uvidí jeho známky i absence s možností mazání a úprav) -->
+                <div id="t-content-students" class="hidden bg-white p-6 rounded-xl shadow space-y-4">
+                    <h3 class="text-lg font-bold text-emerald-700">Seznam žáků</h3>
+                    <p class="text-sm text-slate-500">Kliknutím na žáka zobrazíte jeho známky a absence s možností úprav a mazání.</p>
+                    <div id="teacher-students-cards" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+
+                    <div id="student-detail-box" class="hidden mt-6 p-4 border border-emerald-200 rounded-xl bg-emerald-50 space-y-4">
+                        <h4 id="detail-student-name" class="font-bold text-emerald-900 text-lg"></h4>
+                        
+                        <!-- Známky žáka v detailu -->
+                        <div>
+                            <h5 class="font-semibold text-sm text-emerald-800 mb-2">Známky žáka</h5>
+                            <div class="overflow-x-auto bg-white rounded-lg p-3 shadow-inner">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="border-b border-slate-200 text-slate-500 text-sm">
+                                            <th class="py-1">Předmět</th>
+                                            <th class="py-1">Známka a Informace</th>
+                                            <th class="py-1">Akce</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="teacher-student-grades-table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Absence žáka v detailu -->
+                        <div>
+                            <h5 class="font-semibold text-sm text-emerald-800 mb-2">Absence žáka</h5>
+                            <div class="overflow-x-auto bg-white rounded-lg p-3 shadow-inner">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="border-b border-slate-200 text-slate-500 text-sm">
+                                            <th class="py-1">Stav</th>
+                                            <th class="py-1">Poznámka / Info</th>
+                                            <th class="py-1">Akce</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="teacher-student-absence-table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- SEKCE: PORTÁL ŘEDITELE (ADMIN) -->
-            <div id="admin-portal" class="hidden space-y-6">
-                <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-                    <button onclick="switchAdminTab('users')" id="a-tab-users" class="px-4 py-2 rounded-xl font-semibold bg-indigo-600 text-white transition shadow-sm">Uživatelé</button>
-                    <button onclick="switchAdminTab('subjects')" id="a-tab-subjects" class="px-4 py-2 rounded-xl font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition">Předměty</button>
-                    <button onclick="switchAdminTab('teacher-mode')" id="a-tab-teacher" class="px-4 py-2 rounded-xl font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition">Učitelský panel</button>
-                    <!-- NOVÁ ZÁLOŽKA NABÍDKY -->
-                    <button onclick="switchAdminTab('offers')" id="a-tab-offers" class="px-4 py-2 rounded-xl font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition">Nabídky</button>
+            <!-- ADMIN / ŘEDITELSKÁ SEKCE (Správa uživatelů a předmětů) -->
+            <div id="admin-section" class="hidden space-y-6">
+                <!-- Tlačítka podsekcí pro administraci -->
+                <div class="flex gap-2 bg-white p-3 rounded-xl shadow-sm">
+                    <button onclick="switchAdminSubTab('users')" id="a-subtab-users" class="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium text-sm">Správa uživatelů</button>
+                    <button onclick="switchAdminSubTab('subjects')" id="a-subtab-subjects" class="px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100">Správa předmětů</button>
                 </div>
 
-                <!-- Admin: Uživatelé -->
-                <div id="admin-tab-users" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 class="text-lg font-bold text-slate-800 mb-4">Přidat uživatele</h3>
-                        <form onsubmit="adminAddUser(event)" class="space-y-4">
+                <!-- Podsekce Uživatelé -->
+                <div id="a-content-users" class="space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow">
+                        <h3 class="text-lg font-bold mb-4 text-purple-700">Vytvořit nový uživatelský účet</h3>
+                        <form onsubmit="createUser(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">Jméno a příjmení</label>
-                                <input type="text" id="a-user-name" required class="w-full px-3 py-2 border rounded-xl">
+                                <label class="block text-sm font-medium text-slate-600">Jméno a příjmení</label>
+                                <input type="text" id="new-name" required class="w-full mt-1 p-2 border border-slate-300 rounded-lg" placeholder="Např. Petr Novotný">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">Heslo</label>
-                                <input type="text" id="a-user-pass" required class="w-full px-3 py-2 border rounded-xl">
+                                <label class="block text-sm font-medium text-slate-600">Heslo</label>
+                                <input type="text" id="new-pass" required class="w-full mt-1 p-2 border border-slate-300 rounded-lg" placeholder="Zadejte heslo">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">Role</label>
-                                <select id="a-user-role" class="w-full px-3 py-2 border rounded-xl">
+                                <label class="block text-sm font-medium text-slate-600">Role</label>
+                                <select id="new-role" class="w-full mt-1 p-2 border border-slate-300 rounded-lg">
                                     <option value="student">Žák</option>
                                     <option value="teacher">Učitel</option>
                                     <option value="admin">Ředitel</option>
                                 </select>
                             </div>
-                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition">Vytvořit účet</button>
+                            <button type="submit" class="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 font-medium transition h-[42px]">Vytvořit účet</button>
                         </form>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 class="text-lg font-bold text-slate-800 mb-4">Seznam uživatelů</h3>
-                        <div id="admin-users-list" class="space-y-3 max-h-[400px] overflow-y-auto"></div>
+
+                    <div class="bg-white p-6 rounded-xl shadow">
+                        <h3 class="text-lg font-bold mb-4">Seznam uživatelů (Změna jmen a hesel)</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-slate-500">
+                                        <th class="py-2">Jméno a příjmení</th>
+                                        <th class="py-2">Heslo</th>
+                                        <th class="py-2">Role</th>
+                                        <th class="py-2">Akce</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-list"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Admin: Předměty -->
-                <div id="admin-tab-subjects" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 class="text-lg font-bold text-slate-800 mb-4">Přidat předmět</h3>
-                        <form onsubmit="adminAddSubject(event)" class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">Název předmětu</label>
-                                <input type="text" id="a-sub-name" required class="w-full px-3 py-2 border rounded-xl" placeholder="např. Fyzika">
+                <!-- Podsekce Předměty (S přiřazováním žáků) -->
+                <div id="a-content-subjects" class="hidden space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow">
+                        <h3 class="text-lg font-bold mb-4 text-purple-700">Vytvořit nový předmět</h3>
+                        <form onsubmit="createSubject(event)" class="flex gap-4 items-end">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-slate-600">Název předmětu</label>
+                                <input type="text" id="new-subject-name" required class="w-full mt-1 p-2 border border-slate-300 rounded-lg" placeholder="Např. Dějepis">
                             </div>
-                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition">Přidat předmět</button>
+                            <button type="submit" class="bg-purple-600 text-white py-2 px-6 rounded-lg hover:bg-purple-700 font-medium transition h-[42px]">Přidat předmět</button>
                         </form>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 class="text-lg font-bold text-slate-800 mb-4">Seznam předmětů</h3>
-                        <div id="admin-subjects-list" class="space-y-3"></div>
-                    </div>
-                </div>
 
-                <!-- Admin: Učitelský panel -->
-                <div id="admin-tab-teacher" class="hidden">
-                    <!-- Sem se dynamicky načte rozhraní učitele pro ředitele -->
-                </div>
-
-                <!-- Admin: Nabídky (NOVÉ) -->
-                <div id="admin-tab-offers" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 class="text-lg font-bold text-slate-800 mb-4">Vytvořit hromadnou nabídku předmětů</h3>
-                        <form onsubmit="adminCreateOffer(event)" class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Vyberte předmět(y) do nabídky:</label>
-                                <div id="admin-offer-subjects" class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow">
+                            <h3 class="text-lg font-bold mb-4">Seznam předmětů (Úprava / Smazání)</h3>
+                            <div class="overflow-x-auto max-h-72 overflow-y-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="border-b border-slate-200 text-slate-500">
+                                            <th class="py-2">Název</th>
+                                            <th class="py-2">Akce</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-subjects-list"></tbody>
+                                </table>
                             </div>
+                        </div>
+
+                        <!-- Detail vybraného předmětu pro přiřazení žáků -->
+                        <div class="bg-white p-6 rounded-xl shadow flex flex-col justify-between">
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Vyberte žáky, kterým se nabídka zobrazí:</label>
-                                <div id="admin-offer-students" class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50"></div>
+                                <h3 id="subject-detail-title" class="text-lg font-bold mb-2 text-purple-800">Přiřazení žáků k předmětu</h3>
+                                <p id="subject-detail-info" class="text-sm text-slate-500 mb-4">Klikněte na předmět vlevo pro zobrazení žáků, kteří jej navštěvují.</p>
+                                <div id="subject-students-checkboxes" class="space-y-2 max-h-60 overflow-y-auto"></div>
                             </div>
-                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition">Uložit a odeslat nabídku žákům</button>
-                        </form>
-                    </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 class="text-lg font-bold text-slate-800 mb-4">Aktivní nabídky v systému</h3>
-                        <div id="admin-offers-list" class="space-y-3"></div>
+                            <button id="save-subject-students-btn" onclick="saveSubjectStudentsBinding()" class="hidden mt-4 w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-medium transition">Uložit přiřazení žáků</button>
+                        </div>
                     </div>
                 </div>
-
             </div>
 
         </main>
     </div>
 
-    <!-- VYSKAKOVACÍ OKNO PRO NABÍDKY (MODAL) -->
-    <div id="offer-modal" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4">
-        <div class="bg-white max-w-md w-full rounded-2xl shadow-2xl overflow-hidden p-6 text-center space-y-4 animate-scale">
-            <div class="inline-block bg-indigo-50 text-indigo-600 p-4 rounded-full text-4xl shadow-inner mb-1">🎁</div>
-            <h3 id="offer-modal-title" class="text-2xl font-bold text-slate-900">Název předmětu</h3>
-            <p class="text-lg text-indigo-600 font-semibold">Připoj se k nám!</p>
-            <div class="flex justify-between space-x-3 pt-4">
-                <button id="offer-btn-back" onclick="prevOfferStep()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 rounded-xl transition">Zpět</button>
-                <button id="offer-btn-next" onclick="nextOfferStep()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition">Pokračovat</button>
-            </div>
-        </div>
-    </div>
+    <!-- FIREBASE A HLAVNÍ LOGIKA -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    <!-- LOGIKA APLIKACE -->
-    <script>
-        let appData = {
-            users: {},
-            subjects: {},
-            grades: {},
-            homework: {},
-            attendance: {},
-            offers: {}
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHwlBOpTekJ98oUdTv8UrzRBLD5txuKjE",
+            authDomain: "skola-online-13966.firebaseapp.com",
+            databaseURL: "https://skola-online-13966-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "skola-online-13966",
+            storageBucket: "skola-online-13966.firebasestorage.app",
+            messagingSenderId: "865191293486",
+            appId: "1:865191293486:web:bbf31f585e4dac7dfc65bf"
         };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        const initialData = {
+            users: [
+                { name: "Červeňák Dominik", pass: "6852", role: "admin" }
+            ],
+            subjects: [],
+            subjectStudents: {}, 
+            grades: {}, 
+            homework: [], 
+            absence: {} 
+        };
+
+        async function getData() {
+            try {
+                const dbRef = ref(db, 'school/state');
+                const snapshot = await get(dbRef);
+                if (snapshot.exists()) {
+                    let d = snapshot.val();
+                    if (!d.subjectStudents) d.subjectStudents = {};
+                    if (!d.absence) d.absence = {};
+                    return d;
+                } else {
+                    await set(dbRef, initialData);
+                    return initialData;
+                }
+            } catch (e) {
+                console.error("Chyba při čtení z Firebase:", e);
+                return initialData;
+            }
+        }
+
+        async function saveData(data) {
+            try {
+                const dbRef = ref(db, 'school/state');
+                await set(dbRef, data);
+            } catch (e) {
+                console.error("Chyba při zápisu do Firebase:", e);
+                alert("Chyba při ukládání dat do databáze!");
+            }
+        }
+
         let currentUser = null;
-        let activeOfferList = [];
-        let currentOfferIndex = 0;
+        let selectedSubjectForStudents = null;
+        let selectedStudentDetailName = null;
 
-        window.addEventListener('firebase-ready', () => {
-            const { ref, onValue } = window.dbRef;
-            onValue(ref(window.db, 'school/state'), (snapshot) => {
-                const val = snapshot.val();
-                if (val) {
-                    appData = val;
-                } else {
-                    // Výchozí stav se superadminem Dominikem
-                    appData = {
-                        users: {
-                            "Červeňák Dominik": { name: "Červeňák Dominik", pass: "6852", role: "admin" }
-                        },
-                        subjects: { "Matematika": "Matematika", "Český jazyk": "Český jazyk" },
-                        grades: {},
-                        homework: {},
-                        attendance: {},
-                        offers: {}
-                    };
-                    saveToFirebase();
-                }
-                document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('app').classList.remove('hidden');
-                
-                if (currentUser) {
-                    // Obnovit pohled pokud je uživatel přihlášen
-                    renderDashboard();
-                }
-            });
-        });
+        window.handleLogin = async function(event) {
+            event.preventDefault();
+            const nameInput = document.getElementById('login-name').value.trim();
+            const passInput = document.getElementById('login-password').value.trim();
+            const errorDiv = document.getElementById('login-error');
 
-        function saveToFirebase() {
-            const { ref, set } = window.dbRef;
-            set(ref(window.db, 'school/state'), appData);
-        }
+            const data = await getData();
+            const foundUser = (data.users || []).find(u => u.name.toLowerCase() === nameInput.toLowerCase() && u.pass === passInput);
 
-        // Přihlášení
-        function handleLogin(e) {
-            e.preventDefault();
-            const name = document.getElementById('login-name').value.trim();
-            const pass = document.getElementById('login-pass').value.trim();
-
-            if (appData.users[name] && appData.users[name].pass === pass) {
-                currentUser = appData.users[name];
-                document.getElementById('login-section').classList.add('hidden');
-                document.getElementById('user-info').innerText = `${currentUser.name} (${getRoleName(currentUser.role)})`;
-                renderDashboard();
-                
-                // Kontrola nabídek pro žáka
-                if (currentUser.role === 'student') {
-                    checkStudentOffers();
-                }
+            if (foundUser) {
+                currentUser = foundUser;
+                errorDiv.classList.add('hidden');
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+                initApp();
             } else {
-                alert('Nesprávné jméno nebo heslo!');
+                errorDiv.innerText = "Nesprávné jméno nebo heslo!";
+                errorDiv.classList.remove('hidden');
             }
         }
 
-        function logout() {
+        window.logout = function() {
             currentUser = null;
-            document.getElementById('app').querySelectorAll('#student-portal, #teacher-portal, #admin-portal').forEach(el => el.classList.add('hidden'));
-            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('app-screen').classList.add('hidden');
             document.getElementById('login-name').value = '';
-            document.getElementById('login-pass').value = '';
+            document.getElementById('login-password').value = '';
         }
 
-        function getRoleName(role) {
-            if (role === 'admin') return 'Ředitel';
-            if (role === 'teacher') return 'Učitel';
-            return 'Žák';
-        }
+        async function initApp() {
+            document.getElementById('student-section').classList.add('hidden');
+            document.getElementById('teacher-section').classList.add('hidden');
+            document.getElementById('admin-section').classList.add('hidden');
+            
+            const mainNav = document.getElementById('main-nav');
+            mainNav.innerHTML = '';
 
-        function renderDashboard() {
-            document.getElementById('student-portal').classList.add('hidden');
-            document.getElementById('teacher-portal').classList.add('hidden');
-            document.getElementById('admin-portal').classList.add('hidden');
-
-            if (currentUser.role === 'student') {
-                document.getElementById('student-portal').classList.remove('hidden');
-                renderStudentGrades();
-                renderStudentHomework();
-                renderStudentAttendance();
+            if (currentUser.role === 'admin') {
+                document.getElementById('user-role-badge').innerText = `Ředitel: ${currentUser.name}`;
+                mainNav.innerHTML = `
+                    <button onclick="switchMainRoleTab('admin')" id="mn-admin" class="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium text-sm">Správa školy (Uživatelé & Předměty)</button>
+                    <button onclick="switchMainRoleTab('teacher')" id="mn-teacher" class="px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100">Učitelský panel (Známky, Úkoly, Absence)</button>
+                `;
+                switchMainRoleTab('admin');
             } else if (currentUser.role === 'teacher') {
-                document.getElementById('teacher-portal').classList.remove('hidden');
-                renderTeacherSelects();
-                renderTeacherHomeworkList();
-                renderTeacherStudentsList();
-            } else if (currentUser.role === 'admin') {
-                document.getElementById('admin-portal').classList.remove('hidden');
-                renderAdminUsers();
-                renderAdminSubjects();
-                renderAdminOffers();
-                // Admin může mít i učitelský panel
-                renderTeacherSelects();
-                renderTeacherHomeworkList();
-                renderTeacherStudentsList();
+                document.getElementById('user-role-badge').innerText = `Učitel: ${currentUser.name}`;
+                mainNav.innerHTML = `<span class="px-3 py-2 font-bold text-emerald-700">Učitelský panel</span>`;
+                document.getElementById('teacher-section').classList.remove('hidden');
+                switchTeacherSubTab('grades');
+            } else if (currentUser.role === 'student') {
+                document.getElementById('user-role-badge').innerText = `Žák: ${currentUser.name}`;
+                mainNav.innerHTML = `<span class="px-3 py-2 font-bold text-blue-700">Žákovský portál</span>`;
+                document.getElementById('student-section').classList.remove('hidden');
+                switchStudentTab('grades');
             }
         }
 
-        // --- ŽÁK ---
-        function switchStudentTab(tab) {
-            ['grades', 'homework', 'attendance'].forEach(t => {
-                document.getElementById(`student-tab-${t}`).classList.add('hidden');
-                document.getElementById(`tab-btn-${t}`).className = "pb-3 border-b-2 border-transparent font-semibold text-slate-500 hover:text-slate-800 transition";
+        window.switchMainRoleTab = function(roleTab) {
+            const btnAdmin = document.getElementById('mn-admin');
+            const btnTeacher = document.getElementById('mn-teacher');
+            const adminSec = document.getElementById('admin-section');
+            const teacherSec = document.getElementById('teacher-section');
+
+            if (roleTab === 'admin') {
+                btnAdmin.className = "px-4 py-2 bg-purple-600 text-white rounded-lg font-medium text-sm";
+                btnTeacher.className = "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100";
+                adminSec.classList.remove('hidden');
+                teacherSec.classList.add('hidden');
+                switchAdminSubTab('users');
+            } else {
+                btnTeacher.className = "px-4 py-2 bg-purple-600 text-white rounded-lg font-medium text-sm";
+                btnAdmin.className = "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100";
+                teacherSec.classList.remove('hidden');
+                adminSec.classList.add('hidden');
+                switchTeacherSubTab('grades');
+            }
+        }
+
+        // Student Tabs
+        window.switchStudentTab = async function(tab) {
+            document.getElementById('stab-grades').className = tab === 'grades' ? "px-4 py-2 bg-blue-600 text-white rounded-lg font-medium" : "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200";
+            document.getElementById('stab-homework').className = tab === 'homework' ? "px-4 py-2 bg-blue-600 text-white rounded-lg font-medium" : "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200";
+            document.getElementById('stab-absence').className = tab === 'absence' ? "px-4 py-2 bg-blue-600 text-white rounded-lg font-medium" : "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium hover:bg-slate-200";
+
+            document.getElementById('content-grades').classList.toggle('hidden', tab !== 'grades');
+            document.getElementById('content-homework').classList.toggle('hidden', tab !== 'homework');
+            document.getElementById('content-absence').classList.toggle('hidden', tab !== 'absence');
+
+            if (tab === 'grades') await renderStudentGrades();
+            if (tab === 'homework') await renderStudentHomework();
+            if (tab === 'absence') await renderStudentAbsence();
+        }
+
+        async function renderStudentGrades() {
+            const data = await getData();
+            const allSubs = data.subjects || [];
+            const subStudents = data.subjectStudents || {};
+            const mySubjects = allSubs.filter(sub => {
+                const enrolled = subStudents[sub];
+                if (!enrolled || enrolled.length === 0) return true;
+                return enrolled.includes(currentUser.name);
             });
-            document.getElementById(`student-tab-${tab}`).classList.remove('hidden');
-            document.getElementById(`tab-btn-${tab}`).className = "pb-3 border-b-2 border-indigo-600 font-semibold text-indigo-600 transition";
-        }
 
-        function renderStudentGrades() {
-            const container = document.getElementById('student-grades-list');
-            container.innerHTML = '';
-            const myGrades = appData.grades[currentUser.name] || {};
-
-            if (Object.keys(appData.subjects).length === 0) {
-                container.innerHTML = '<p class="text-slate-500">Zatím nejsou vytvořeny žádné předměty.</p>';
-                return;
-            }
-
-            for (let sub of Object.keys(appData.subjects)) {
-                const subGrades = myGrades[sub] || [];
-                let avg = '-';
-                if (subGrades.length > 0) {
-                    const sum = subGrades.reduce((acc, g) => acc + parseInt(g.val), 0);
-                    avg = (sum / subGrades.length).toFixed(2);
-                }
-
-                let html = `
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-                        <div class="flex justify-between items-center">
-                            <h4 class="font-bold text-lg text-slate-800">${sub}</h4>
-                            <span class="text-sm bg-indigo-50 text-indigo-600 font-semibold px-2.5 py-1 rounded-lg">Průměr: ${avg}</span>
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                `;
-                if (subGrades.length === 0) {
-                    html += '<span class="text-sm text-slate-400">Žádné známky</span>';
-                } else {
-                    subGrades.forEach(g => {
-                        html += `<span class="bg-slate-100 px-2.5 py-1 rounded-lg text-sm font-bold text-slate-700" title="${g.desc}">${g.val}</span>`;
-                    });
-                }
-                html += `</div></div>`;
-                container.innerHTML += html;
-            }
-        }
-
-        function renderStudentHomework() {
-            const container = document.getElementById('student-homework-list');
-            container.innerHTML = '';
-            const allHw = appData.homework || {};
-            const keys = Object.keys(allHw);
-
-            if (keys.length === 0) {
-                container.innerHTML = '<p class="text-slate-500">Žádné domácí úkoly.</p>';
-                return;
-            }
-
-            keys.forEach(id => {
-                const hw = allHw[id];
-                container.innerHTML += `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-start">
-                        <div>
-                            <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">${hw.subject}</span>
-                            <p class="text-slate-800 mt-1">${hw.text}</p>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        function renderStudentAttendance() {
-            const tbody = document.getElementById('student-attendance-table');
+            const studentGrades = (data.grades || {})[currentUser.name] || {};
+            const tbody = document.getElementById('student-grades-list');
             tbody.innerHTML = '';
-            const att = (appData.attendance[currentUser.name] || []);
 
-            if (att.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="2" class="p-4 text-slate-400 text-center">Žádné záznamy docházky</td></tr>';
+            if (mySubjects.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="py-3 text-slate-500">Nemáte přiřazené žádné předměty.</td></tr>';
                 return;
             }
 
-            att.forEach(a => {
+            mySubjects.forEach(sub => {
+                const subGrades = studentGrades[sub] || [];
+                let avg = '-';
+                let formattedGrades = 'Žádné známky';
+                if (subGrades.length > 0) {
+                    const sum = subGrades.reduce((acc, g) => acc + parseInt(g.value), 0);
+                    avg = (sum / subGrades.length).toFixed(2);
+                    formattedGrades = subGrades.map(g => `<span class="inline-block bg-slate-100 px-2 py-1 rounded m-1 text-blue-700 font-bold border">${g.value} <span class="text-xs font-normal text-slate-500">(${g.info || 'bez info'})</span></span>`).join('');
+                }
                 tbody.innerHTML += `
                     <tr class="border-b border-slate-100">
-                        <td class="p-3 text-sm text-slate-600">${a.date}</td>
-                        <td class="p-3 text-sm font-semibold text-slate-800">${a.status}</td>
+                        <td class="py-3 font-medium">${sub}</td>
+                        <td class="py-3">${formattedGrades}</td>
+                        <td class="py-3 font-bold text-slate-700">${avg}</td>
                     </tr>
                 `;
             });
         }
 
-        // --- UČITEL ---
-        function switchTeacherTab(tab) {
-            ['grades', 'homework', 'attendance', 'students'].forEach(t => {
-                document.getElementById(`teacher-tab-${t}`).classList.add('hidden');
-                document.getElementById(`t-tab-${t}`).className = "px-4 py-2 rounded-xl font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition";
-            });
-            document.getElementById(`teacher-tab-${tab}`).classList.remove('hidden');
-            document.getElementById(`t-tab-${tab}`).className = "px-4 py-2 rounded-xl font-semibold bg-indigo-600 text-white transition shadow-sm";
-        }
+        async function renderStudentHomework() {
+            const data = await getData();
+            const list = document.getElementById('student-homework-list');
+            list.innerHTML = '';
+            const homeworks = data.homework || [];
+            const myHws = homeworks.filter(hw => !hw.students || hw.students.length === 0 || hw.students.includes(currentUser.name));
 
-        function renderTeacherSelects() {
-            // Naplnit předměty
-            const subSelects = [document.getElementById('t-grade-subject'), document.getElementById('t-hw-subject')];
-            subSelects.forEach(sel => {
-                if (!sel) return;
-                sel.innerHTML = '';
-                for (let sub of Object.keys(appData.subjects)) {
-                    sel.innerHTML += `<option value="${sub}">${sub}</option>`;
-                }
-            });
+            if (myHws.length === 0) {
+                list.innerHTML = '<p class="text-slate-500">Žádné domácí úkoly.</p>';
+                return;
+            }
 
-            // Naplnit žáky
-            const studentSelects = [document.getElementById('t-grade-student'), document.getElementById('t-att-student')];
-            const students = Object.values(appData.users).filter(u => u.role === 'student');
-            studentSelects.forEach(sel => {
-                if (!sel) return;
-                sel.innerHTML = '';
-                students.forEach(s => {
-                    sel.innerHTML += `<option value="${s.name}">${s.name}</option>`;
-                });
-            });
-        }
-
-        function teacherAddGrade(e) {
-            e.preventDefault();
-            const sub = document.getElementById('t-grade-subject').value;
-            const student = document.getElementById('t-grade-student').value;
-            const val = document.getElementById('t-grade-val').value;
-            const desc = document.getElementById('t-grade-desc').value;
-
-            if (!appData.grades[student]) appData.grades[student] = {};
-            if (!appData.grades[student][sub]) appData.grades[student][sub] = [];
-
-            appData.grades[student][sub].push({ val, desc });
-            saveToFirebase();
-            alert('Známka byla úspěšně zapsána!');
-            e.target.reset();
-        }
-
-        function teacherAddHomework(e) {
-            e.preventDefault();
-            const subject = document.getElementById('t-hw-subject').value;
-            const text = document.getElementById('t-hw-text').value;
-            const id = 'hw_' + Date.now();
-
-            if (!appData.homework) appData.homework = {};
-            appData.homework[id] = { subject, text };
-            saveToFirebase();
-            alert('Domácí úkol byl zveřejněn!');
-            e.target.reset();
-            renderTeacherHomeworkList();
-        }
-
-        function renderTeacherHomeworkList() {
-            const container = document.getElementById('teacher-homework-list');
-            if (!container) return;
-            container.innerHTML = '';
-            const allHw = appData.homework || {};
-            
-            for (let id of Object.keys(allHw)) {
-                const hw = allHw[id];
-                container.innerHTML += `
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center">
-                        <div>
-                            <span class="text-xs font-bold text-indigo-600">${hw.subject}</span>
-                            <p class="text-sm text-slate-800">${hw.text}</p>
-                        </div>
-                        <button onclick="deleteHomework('${id}')" class="text-red-500 hover:text-red-700 text-sm font-semibold px-3 py-1">Smazat</button>
+            myHws.forEach(hw => {
+                list.innerHTML += `
+                    <div class="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                        <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">${hw.subject}</span>
+                        <p class="mt-1 text-slate-700 font-medium">${hw.text}</p>
                     </div>
                 `;
+            });
+        }
+
+        async function renderStudentAbsence() {
+            const data = await getData();
+            const tbody = document.getElementById('student-absence-list');
+            tbody.innerHTML = '';
+            const myAbsences = (data.absence || {})[currentUser.name] || [];
+
+            if (myAbsences.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" class="py-3 text-slate-500">Žádné záznamy o absenci.</td></tr>';
+                return;
             }
+
+            myAbsences.forEach(ab => {
+                const badgeColor = ab.status === '/' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800';
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-100">
+                        <td class="py-3"><span class="px-3 py-1 rounded-full font-bold text-sm ${badgeColor}">${ab.status}</span></td>
+                        <td class="py-3 text-slate-700">${ab.info || 'Bez poznámky'}</td>
+                    </tr>
+                `;
+            });
         }
 
-        function deleteHomework(id) {
-            delete appData.homework[id];
-            saveToFirebase();
-            renderTeacherHomeworkList();
+        // Teacher Sub Tabs
+        window.switchTeacherSubTab = async function(tab) {
+            document.getElementById('t-subtab-grades').className = tab === 'grades' ? "px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm" : "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100";
+            document.getElementById('t-subtab-homework').className = tab === 'homework' ? "px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm" : "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100";
+            document.getElementById('t-subtab-absence').className = tab === 'absence' ? "px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm" : "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100";
+            document.getElementById('t-subtab-students').className = tab === 'students' ? "px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm" : "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100";
+
+            document.getElementById('t-content-grades').classList.toggle('hidden', tab !== 'grades');
+            document.getElementById('t-content-homework').classList.toggle('hidden', tab !== 'homework');
+            document.getElementById('t-content-absence').classList.toggle('hidden', tab !== 'absence');
+            document.getElementById('t-content-students').classList.toggle('hidden', tab !== 'students');
+
+            if (tab === 'grades') await renderTeacherGradesForm();
+            if (tab === 'homework') await renderTeacherHomeworkManager();
+            if (tab === 'absence') await renderTeacherAbsenceForm();
+            if (tab === 'students') await renderTeacherStudentsList();
         }
 
-        function teacherAddAttendance(e) {
-            e.preventDefault();
-            const student = document.getElementById('t-att-student').value;
-            const status = document.getElementById('t-att-status').value;
-            const date = new Date().toLocaleDateString('cs-CZ');
+        async function renderTeacherGradesForm() {
+            const data = await getData();
+            const subjectSelect = document.getElementById('multi-grade-subject');
+            subjectSelect.innerHTML = (data.subjects || []).map(s => `<option value="${s}">${s}</option>`).join('') || '<option disabled>Žádné předměty</option>';
 
-            if (!appData.attendance[student]) appData.attendance[student] = [];
-            appData.attendance[student].push({ date, status });
-            saveToFirebase();
-            alert('Docházka byla zapsána!');
+            const box = document.getElementById('multi-grade-students-box');
+            box.innerHTML = '';
+            const students = (data.users || []).filter(u => u.role === 'student');
+            students.forEach(s => {
+                box.innerHTML += `
+                    <label class="flex items-center gap-2 p-1.5 bg-white border border-slate-200 rounded cursor-pointer hover:bg-emerald-50">
+                        <input type="checkbox" value="${s.name}" class="multi-grade-chk rounded text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-sm font-medium">${s.name}</span>
+                    </label>
+                `;
+            });
         }
 
-        function renderTeacherStudentsList() {
-            const container = document.getElementById('teacher-students-list');
-            if (!container) return;
+        window.saveMultiGrades = async function() {
+            const subject = document.getElementById('multi-grade-subject').value;
+            const value = document.getElementById('multi-grade-value').value;
+            const info = document.getElementById('multi-grade-info').value.trim();
+            const checkboxes = document.querySelectorAll('.multi-grade-chk:checked');
+
+            if (checkboxes.length === 0) {
+                alert('Vyberte alespoň jednoho žáka!');
+                return;
+            }
+
+            let data = await getData();
+            if (!data.grades) data.grades = {};
+
+            checkboxes.forEach(chk => {
+                const sName = chk.value;
+                if (!data.grades[sName]) data.grades[sName] = {};
+                if (!data.grades[sName][subject]) data.grades[sName][subject] = [];
+                data.grades[sName][subject].push({ value, info });
+            });
+
+            await saveData(data);
+            document.getElementById('multi-grade-info').value = '';
+            checkboxes.forEach(chk => chk.checked = false);
+            alert('Známky byly úspěšně zapsány vybraným žákům!');
+        }
+
+        // Homework Management for Teacher
+        async function renderTeacherHomeworkManager() {
+            const data = await getData();
+            const subSelect = document.getElementById('t-hw-subject');
+            subSelect.innerHTML = (data.subjects || []).map(s => `<option value="${s}">${s}</option>`).join('') || '<option disabled>Žádné předměty</option>';
+
+            const box = document.getElementById('t-hw-students-box');
+            box.innerHTML = '';
+            const students = (data.users || []).filter(u => u.role === 'student');
+            students.forEach(s => {
+                box.innerHTML += `
+                    <label class="flex items-center gap-2 p-1 bg-slate-50 border border-slate-200 rounded cursor-pointer hover:bg-emerald-50">
+                        <input type="checkbox" value="${s.name}" class="t-hw-chk rounded text-emerald-600">
+                        <span class="text-xs font-medium">${s.name}</span>
+                    </label>
+                `;
+            });
+
+            renderTeacherHomeworkTable(data);
+        }
+
+        function renderTeacherHomeworkTable(data) {
+            const tbody = document.getElementById('t-homework-list');
+            tbody.innerHTML = '';
+            const hws = data.homework || [];
+
+            if (hws.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-slate-500">Zatím žádné úkoly.</td></tr>';
+                return;
+            }
+
+            hws.forEach((hw, index) => {
+                const targetText = (!hw.students || hw.students.length === 0) ? 'Všichni žáci' : hw.students.join(', ');
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-100 text-sm">
+                        <td class="py-2 font-medium">${hw.subject}</td>
+                        <td class="py-2">${hw.text}</td>
+                        <td class="py-2 text-slate-500 text-xs">${targetText}</td>
+                        <td class="py-2 space-x-2">
+                            <button onclick="editHomework(${index})" class="text-blue-600 hover:underline font-medium">Upravit</button>
+                            <button onclick="deleteHomework(${index})" class="text-red-600 hover:underline font-medium">Smazat</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.saveHomeworkAction = async function() {
+            const subject = document.getElementById('t-hw-subject').value;
+            const text = document.getElementById('t-hw-text').value.trim();
+            const editIndex = parseInt(document.getElementById('edit-hw-index').value);
+            const checkboxes = document.querySelectorAll('.t-hw-chk:checked');
+            const targetStudents = Array.from(checkboxes).map(c => c.value);
+
+            if (!text) {
+                alert('Zadejte text úkolu.');
+                return;
+            }
+
+            let data = await getData();
+            if (!data.homework) data.homework = [];
+
+            if (editIndex === -1) {
+                data.homework.push({ subject, text, students: targetStudents });
+                alert('Úkol byl přidán.');
+            } else {
+                data.homework[editIndex] = { subject, text, students: targetStudents };
+                alert('Úkol byl upraven.');
+                resetHwForm();
+            }
+
+            await saveData(data);
+            document.getElementById('t-hw-text').value = '';
+            document.querySelectorAll('.t-hw-chk').forEach(c => c.checked = false);
+            renderTeacherHomeworkTable(data);
+        }
+
+        window.editHomework = async function(index) {
+            let data = await getData();
+            const hw = data.homework[index];
+            document.getElementById('t-hw-subject').value = hw.subject;
+            document.getElementById('t-hw-text').value = hw.text;
+            document.getElementById('edit-hw-index').value = index;
+            document.getElementById('hw-form-title').innerText = "Upravit domácí úkol";
+            document.getElementById('hw-cancel-btn').classList.remove('hidden');
+
+            const chks = document.querySelectorAll('.t-hw-chk');
+            chks.forEach(c => {
+                c.checked = hw.students && hw.students.includes(c.value);
+            });
+        }
+
+        window.resetHwForm = function() {
+            document.getElementById('edit-hw-index').value = "-1";
+            document.getElementById('hw-form-title').innerText = "Vytvořit nový úkol";
+            document.getElementById('t-hw-text').value = '';
+            document.getElementById('hw-cancel-btn').classList.add('hidden');
+            document.querySelectorAll('.t-hw-chk').forEach(c => c.checked = false);
+        }
+
+        window.deleteHomework = async function(index) {
+            let data = await getData();
+            data.homework.splice(index, 1);
+            await saveData(data);
+            renderTeacherHomeworkTable(data);
+        }
+
+        // Absence Form
+        async function renderTeacherAbsenceForm() {
+            const data = await getData();
+            const box = document.getElementById('absence-students-box');
+            box.innerHTML = '';
+            const students = (data.users || []).filter(u => u.role === 'student');
+            students.forEach(s => {
+                box.innerHTML += `
+                    <label class="flex items-center gap-2 p-1.5 bg-white border border-slate-200 rounded cursor-pointer hover:bg-emerald-50">
+                        <input type="checkbox" value="${s.name}" class="absence-chk rounded text-emerald-600">
+                        <span class="text-sm font-medium">${s.name}</span>
+                    </label>
+                `;
+            });
+        }
+
+        window.saveAbsence = async function() {
+            const status = document.getElementById('absence-status-val').value;
+            const info = document.getElementById('absence-info-val').value.trim();
+            const checkboxes = document.querySelectorAll('.absence-chk:checked');
+
+            if (checkboxes.length === 0) {
+                alert('Vyberte alespoň jednoho žáka!');
+                return;
+            }
+
+            let data = await getData();
+            if (!data.absence) data.absence = {};
+
+            checkboxes.forEach(chk => {
+                const sName = chk.value;
+                if (!data.absence[sName]) data.absence[sName] = [];
+                data.absence[sName].push({ status, info });
+            });
+
+            await saveData(data);
+            document.getElementById('absence-info-val').value = '';
+            checkboxes.forEach(c => c.checked = false);
+            alert('Absence byla úspěšně zapsána!');
+        }
+
+        // Teacher Students List & Grade/Absence Management
+        async function renderTeacherStudentsList() {
+            const data = await getData();
+            const container = document.getElementById('teacher-students-cards');
             container.innerHTML = '';
-            const students = Object.values(appData.users).filter(u => u.role === 'student');
+            const students = (data.users || []).filter(u => u.role === 'student');
 
             if (students.length === 0) {
                 container.innerHTML = '<p class="text-slate-500">Žádní žáci v systému.</p>';
@@ -615,296 +794,314 @@
             }
 
             students.forEach(s => {
-                let html = `
-                    <div class="border border-slate-200 rounded-xl p-4 space-y-2 bg-slate-50">
-                        <h4 class="font-bold text-slate-800">${s.name}</h4>
-                        <div class="text-sm text-slate-600">
-                            <strong>Známky:</strong>
+                container.innerHTML += `
+                    <div onclick="selectStudentForDetail('${s.name}')" class="p-4 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-emerald-100 transition font-medium text-emerald-900 flex justify-between items-center">
+                        <span>${s.name}</span>
+                        <span class="text-xs bg-emerald-200 text-emerald-800 px-2 py-1 rounded">Zobrazit záznamy</span>
+                    </div>
                 `;
-                const sGrades = appData.grades[s.name] || {};
-                let hasGrades = false;
-                for (let sub of Object.keys(sGrades)) {
-                    sGrades[sub].forEach((g, idx) => {
-                        hasGrades = true;
-                        html += `<span class="inline-block bg-white border px-2 py-0.5 rounded m-1">${sub}: ${g.val} (${g.desc}) <button onclick="deleteGrade('${s.name}', '${sub}', ${idx})" class="text-red-500 ml-1">×</button></span>`;
-                    });
+            });
+        }
+
+        window.selectStudentForDetail = async function(studentName) {
+            selectedStudentDetailName = studentName;
+            document.getElementById('student-detail-box').classList.remove('hidden');
+            document.getElementById('detail-student-name').innerText = `Záznamy žáka: ${studentName}`;
+            await renderTeacherStudentGradesTable();
+            await renderTeacherStudentAbsenceTable();
+        }
+
+        async function renderTeacherStudentGradesTable() {
+            const data = await getData();
+            const tbody = document.getElementById('teacher-student-grades-table');
+            tbody.innerHTML = '';
+            const studentGrades = (data.grades || {})[selectedStudentDetailName] || {};
+            let hasAny = false;
+
+            for (const [sub, gradesArr] of Object.entries(studentGrades)) {
+                gradesArr.forEach((g, gIndex) => {
+                    hasAny = true;
+                    tbody.innerHTML += `
+                        <tr class="border-b border-slate-100">
+                            <td class="py-2 font-medium">${sub}</td>
+                            <td class="py-2"><span class="font-bold text-blue-600">${g.value}</span> <span class="text-xs text-slate-500">(${g.info || 'bez info'})</span></td>
+                            <td class="py-2"><button onclick="deleteGradeForStudent('${selectedStudentDetailName}', '${sub}', ${gIndex})" class="text-red-600 hover:underline text-xs font-medium">Smazat</button></td>
+                        </tr>
+                    `;
+                });
+            }
+
+            if (!hasAny) {
+                tbody.innerHTML = '<tr><td colspan="3" class="py-2 text-slate-500 text-sm">Žák nemá žádné známky.</td></tr>';
+            }
+        }
+
+        window.deleteGradeForStudent = async function(studentName, subject, index) {
+            let data = await getData();
+            if (data.grades && data.grades[studentName] && data.grades[studentName][subject]) {
+                data.grades[studentName][subject].splice(index, 1);
+                if (data.grades[studentName][subject].length === 0) {
+                    delete data.grades[studentName][subject];
                 }
-                if (!hasGrades) html += ' <span>Žádné</span>';
-                html += `</div></div>`;
-                container.innerHTML += html;
+                await saveData(data);
+                await renderTeacherStudentGradesTable();
+                alert('Známka byla smazána.');
+            }
+        }
+
+        async function renderTeacherStudentAbsenceTable() {
+            const data = await getData();
+            const tbody = document.getElementById('teacher-student-absence-table');
+            tbody.innerHTML = '';
+            const studentAbsences = (data.absence || {})[selectedStudentDetailName] || [];
+
+            if (studentAbsences.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="py-2 text-slate-500 text-sm">Žák nemá žádné záznamy o absenci.</td></tr>';
+                return;
+            }
+
+            studentAbsences.forEach((ab, abIndex) => {
+                const statusClass = ab.status === '/' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800';
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-100 text-sm">
+                        <td class="py-2">
+                            <select id="edit-abs-status-${abIndex}" class="p-1 border rounded font-bold text-xs ${statusClass}">
+                                <option value="/" ${ab.status==='/'?'selected':''}>/</option>
+                                <option value="O" ${ab.status==='O'?'selected':''}>O</option>
+                            </select>
+                        </td>
+                        <td class="py-2">
+                            <input type="text" id="edit-abs-info-${abIndex}" value="${ab.info || ''}" class="p-1 border rounded w-full text-xs" placeholder="Poznámka...">
+                        </td>
+                        <td class="py-2 space-x-2 whitespace-nowrap">
+                            <button onclick="updateAbsenceForStudent('${selectedStudentDetailName}', ${abIndex})" class="text-blue-600 hover:underline text-xs font-medium">Uložit</button>
+                            <button onclick="deleteAbsenceForStudent('${selectedStudentDetailName}', ${abIndex})" class="text-red-600 hover:underline text-xs font-medium">Smazat</button>
+                        </td>
+                    </tr>
+                `;
             });
         }
 
-        function deleteGrade(student, sub, idx) {
-            appData.grades[student][sub].splice(idx, 1);
-            saveToFirebase();
-            renderTeacherStudentsList();
+        window.updateAbsenceForStudent = async function(studentName, index) {
+            const newStatus = document.getElementById(`edit-abs-status-${index}`).value;
+            const newInfo = document.getElementById(`edit-abs-info-${index}`).value.trim();
+
+            let data = await getData();
+            if (data.absence && data.absence[studentName] && data.absence[studentName][index]) {
+                data.absence[studentName][index] = { status: newStatus, info: newInfo };
+                await saveData(data);
+                await renderTeacherStudentAbsenceTable();
+                alert('Absence byla aktualizována.');
+            }
         }
 
+        window.deleteAbsenceForStudent = async function(studentName, index) {
+            let data = await getData();
+            if (data.absence && data.absence[studentName]) {
+                data.absence[studentName].splice(index, 1);
+                if (data.absence[studentName].length === 0) {
+                    delete data.absence[studentName];
+                }
+                await saveData(data);
+                await renderTeacherStudentAbsenceTable();
+                alert('Záznam absence byl smazán.');
+            }
+        }
 
-        // --- ADMIN / ŘEDITEL ---
-        function switchAdminTab(tab) {
-            ['users', 'subjects', 'teacher-mode', 'offers'].forEach(t => {
-                const el = document.getElementById(`admin-tab-${t}`);
-                if (el) el.classList.add('hidden');
-                const btn = document.getElementById(`a-tab-${t}`);
-                if (btn) btn.className = "px-4 py-2 rounded-xl font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition";
+        // Admin Sub Tabs
+        window.switchAdminSubTab = async function(tab) {
+            document.getElementById('a-subtab-users').className = tab === 'users' ? "px-4 py-2 bg-purple-600 text-white rounded-lg font-medium text-sm" : "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100";
+            document.getElementById('a-subtab-subjects').className = tab === 'subjects' ? "px-4 py-2 bg-purple-600 text-white rounded-lg font-medium text-sm" : "px-4 py-2 bg-white text-slate-600 rounded-lg font-medium text-sm hover:bg-slate-100";
+
+            document.getElementById('a-content-users').classList.toggle('hidden', tab !== 'users');
+            document.getElementById('a-content-subjects').classList.toggle('hidden', tab !== 'subjects');
+
+            if (tab === 'users') await renderAdminUsers();
+            if (tab === 'subjects') await renderAdminSubjects();
+        }
+
+        window.createUser = async function(event) {
+            event.preventDefault();
+            const name = document.getElementById('new-name').value.trim();
+            const pass = document.getElementById('new-pass').value.trim();
+            const role = document.getElementById('new-role').value;
+
+            let data = await getData();
+            if (!data.users) data.users = [];
+
+            if (data.users.some(u => u.name.toLowerCase() === name.toLowerCase())) {
+                alert('Uživatel s tímto jménem již existuje!');
+                return;
+            }
+
+            data.users.push({ name, pass, role });
+            await saveData(data);
+
+            document.getElementById('new-name').value = '';
+            document.getElementById('new-pass').value = '';
+            await renderAdminUsers();
+            alert(`Účet pro ${name} byl vytvořen.`);
+        }
+
+        async function renderAdminUsers() {
+            const data = await getData();
+            const tbody = document.getElementById('admin-users-list');
+            tbody.innerHTML = '';
+
+            (data.users || []).forEach((u, index) => {
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-100 text-sm">
+                        <td class="py-2"><input type="text" id="edit-u-name-${index}" value="${u.name}" class="p-1 border rounded w-full"></td>
+                        <td class="py-2"><input type="text" id="edit-u-pass-${index}" value="${u.pass}" class="p-1 border rounded w-32"></td>
+                        <td class="py-2">
+                            <select id="edit-u-role-${index}" class="p-1 border rounded">
+                                <option value="student" ${u.role==='student'?'selected':''}>Žák</option>
+                                <option value="teacher" ${u.role==='teacher'?'selected':''}>Učitel</option>
+                                <option value="admin" ${u.role==='admin'?'selected':''}>Ředitel</option>
+                            </select>
+                        </td>
+                        <td class="py-2 space-x-2">
+                            <button onclick="updateUser(${index})" class="text-blue-600 hover:underline font-medium">Uložit</button>
+                            <button onclick="deleteUser(${index})" class="text-red-600 hover:underline font-medium">Smazat</button>
+                        </td>
+                    </tr>
+                `;
             });
-            
-            const targetEl = document.getElementById(`admin-tab-${tab}`);
-            if (targetEl) targetEl.classList.remove('hidden');
-            const targetBtn = document.getElementById(`a-tab-${tab}`);
-            if (targetBtn) targetBtn.className = "px-4 py-2 rounded-xl font-semibold bg-indigo-600 text-white transition shadow-sm";
-
-            if (tab === 'teacher-mode') {
-                // Vložit učitelský panel dovnitř admina
-                document.getElementById('admin-tab-teacher').innerHTML = document.getElementById('teacher-portal').innerHTML;
-                document.getElementById('admin-tab-teacher').classList.remove('hidden');
-                renderTeacherSelects();
-                renderTeacherHomeworkList();
-                renderTeacherStudentsList();
-            }
-            if (tab === 'offers') {
-                renderAdminOfferFormOptions();
-                renderAdminOffersList();
-            }
         }
 
-        function adminAddUser(e) {
-            e.preventDefault();
-            const name = document.getElementById('a-user-name').value.trim();
-            const pass = document.getElementById('a-user-pass').value.trim();
-            const role = document.getElementById('a-user-role').value;
+        window.updateUser = async function(index) {
+            const name = document.getElementById(`edit-u-name-${index}`).value.trim();
+            const pass = document.getElementById(`edit-u-pass-${index}`).value.trim();
+            const role = document.getElementById(`edit-u-role-${index}`).value;
 
-            appData.users[name] = { name, pass, role };
-            saveToFirebase();
-            alert('Uživatel vytvořen!');
-            e.target.reset();
-            renderAdminUsers();
+            let data = await getData();
+            data.users[index] = { name, pass, role };
+            await saveData(data);
+            alert('Uživatel byl aktualizován.');
+            await renderAdminUsers();
         }
 
-        function renderAdminUsers() {
-            const container = document.getElementById('admin-users-list');
-            if (!container) return;
-            container.innerHTML = '';
+        window.deleteUser = async function(index) {
+            let data = await getData();
+            data.users.splice(index, 1);
+            await saveData(data);
+            await renderAdminUsers();
+            alert('Uživatel byl smazán.');
+        }
 
-            for (let name of Object.keys(appData.users)) {
-                const u = appData.users[name];
-                container.innerHTML += `
-                    <div class="flex justify-between items-center p-3 bg-slate-50 border rounded-xl">
-                        <div>
-                            <span class="font-bold text-slate-800">${u.name}</span>
-                            <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full ml-2">${getRoleName(u.role)}</span>
-                        </div>
-                        ${name !== currentUser.name ? `<button onclick="deleteUser('${name}')" class="text-red-500 font-semibold text-sm">Smazat</button>` : ''}
-                    </div>
+        async function renderAdminSubjects() {
+            const data = await getData();
+            const tbody = document.getElementById('admin-subjects-list');
+            tbody.innerHTML = '';
+            const subjects = data.subjects || [];
+
+            if (subjects.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" class="py-3 text-slate-500">Zatím žádné předměty.</td></tr>';
+                return;
+            }
+
+            subjects.forEach((sub, index) => {
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-100 text-sm">
+                        <td class="py-2 flex items-center gap-2">
+                            <input type="text" id="edit-sub-name-${index}" value="${sub}" class="p-1 border rounded flex-1">
+                            <button onclick="renameSubject(${index})" class="text-blue-600 hover:underline text-xs">Přejmenovat</button>
+                        </td>
+                        <td class="py-2 space-x-2">
+                            <button onclick="selectSubjectForStudentsBinding('${sub}')" class="text-purple-600 hover:underline font-medium">Žáci</button>
+                            <button onclick="deleteSubject(${index})" class="text-red-600 hover:underline font-medium">Smazat</button>
+                        </td>
+                    </tr>
                 `;
-            }
+            });
         }
 
-        function deleteUser(name) {
-            delete appData.users[name];
-            saveToFirebase();
-            renderAdminUsers();
-        }
+        window.createSubject = async function(event) {
+            event.preventDefault();
+            const name = document.getElementById('new-subject-name').value.trim();
 
-        function adminAddSubject(e) {
-            e.preventDefault();
-            const name = document.getElementById('a-sub-name').value.trim();
-            appData.subjects[name] = name;
-            saveToFirebase();
-            alert('Předmět přidán!');
-            e.target.reset();
-            renderAdminSubjects();
-        }
+            let data = await getData();
+            if (!data.subjects) data.subjects = [];
 
-        function renderAdminSubjects() {
-            const container = document.getElementById('admin-subjects-list');
-            if (!container) return;
-            container.innerHTML = '';
-
-            for (let sub of Object.keys(appData.subjects)) {
-                container.innerHTML += `
-                    <div class="flex justify-between items-center p-3 bg-slate-50 border rounded-xl">
-                        <span class="font-bold text-slate-800">${sub}</span>
-                        <button onclick="deleteSubject('${sub}')" class="text-red-500 font-semibold text-sm">Smazat</button>
-                    </div>
-                `;
-            }
-        }
-
-        function deleteSubject(sub) {
-            delete appData.subjects[sub];
-            saveToFirebase();
-            renderAdminSubjects();
-        }
-
-
-        // --- NOVÁ FUNKCE: NABÍDKY PRO ŽÁKY ---
-        function renderAdminOfferFormOptions() {
-            // Predmety checkboxes
-            const subContainer = document.getElementById('admin-offer-subjects');
-            subContainer.innerHTML = '';
-            for (let sub of Object.keys(appData.subjects)) {
-                subContainer.innerHTML += `
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="checkbox" name="offer-sub" value="${sub}" class="rounded text-indigo-600 focus:ring-indigo-500">
-                        <span class="text-sm font-medium text-slate-700">${sub}</span>
-                    </label>
-                `;
+            if (data.subjects.includes(name)) {
+                alert('Tento předmět již existuje!');
+                return;
             }
 
-            // Žáci checkboxes
-            const studentContainer = document.getElementById('admin-offer-students');
-            studentContainer.innerHTML = '';
-            const students = Object.values(appData.users).filter(u => u.role === 'student');
+            data.subjects.push(name);
+            await saveData(data);
+            document.getElementById('new-subject-name').value = '';
+            await renderAdminSubjects();
+            alert(`Předmět "${name}" byl vytvořen.`);
+        }
+
+        window.renameSubject = async function(index) {
+            const oldName = (await getData()).subjects[index];
+            const newName = document.getElementById(`edit-sub-name-${index}`).value.trim();
+            if (!newName) return;
+
+            let data = await getData();
+            data.subjects[index] = newName;
+            if (data.subjectStudents && data.subjectStudents[oldName]) {
+                data.subjectStudents[newName] = data.subjectStudents[oldName];
+                delete data.subjectStudents[oldName];
+            }
+            await saveData(data);
+            alert('Předmět byl přejmenován.');
+            await renderAdminSubjects();
+        }
+
+        window.deleteSubject = async function(index) {
+            let data = await getData();
+            const subName = data.subjects[index];
+            data.subjects.splice(index, 1);
+            if (data.subjectStudents && data.subjectStudents[subName]) {
+                delete data.subjectStudents[subName];
+            }
+            await saveData(data);
+            await renderAdminSubjects();
+            alert('Předmět byl smazán.');
+        }
+
+        window.selectSubjectForStudentsBinding = async function(subName) {
+            selectedSubjectForStudents = subName;
+            document.getElementById('subject-detail-title').innerText = `Žáci pro předmět: ${subName}`;
+            document.getElementById('subject-detail-info').innerText = "Zaškrtněte žáky, kteří navštěvují tento předmět:";
+            document.getElementById('save-subject-students-btn').classList.remove('hidden');
+
+            const data = await getData();
+            const enrolled = (data.subjectStudents || {})[subName] || [];
+            const box = document.getElementById('subject-students-checkboxes');
+            box.innerHTML = '';
+            const students = (data.users || []).filter(u => u.role === 'student');
+
+            if (students.length === 0) {
+                box.innerHTML = '<p class="text-slate-500 text-sm">Žádní žáci v systému.</p>';
+                return;
+            }
+
             students.forEach(s => {
-                studentContainer.innerHTML += `
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="checkbox" name="offer-stu" value="${s.name}" class="rounded text-indigo-600 focus:ring-indigo-500">
-                        <span class="text-sm font-medium text-slate-700">${s.name}</span>
+                const isChecked = enrolled.includes(s.name) ? 'checked' : '';
+                box.innerHTML += `
+                    <label class="flex items-center gap-2 p-1.5 bg-slate-50 border rounded cursor-pointer hover:bg-purple-50">
+                        <input type="checkbox" value="${s.name}" ${isChecked} class="sub-student-chk rounded text-purple-600">
+                        <span class="text-sm font-medium">${s.name}</span>
                     </label>
                 `;
             });
         }
 
-        function adminCreateOffer(e) {
-            e.preventDefault();
-            const selectedSubs = Array.from(document.querySelectorAll('input[name="offer-sub"]:checked')).map(el => el.value);
-            const selectedStus = Array.from(document.querySelectorAll('input[name="offer-stu"]:checked')).map(el => el.value);
+        window.saveSubjectStudentsBinding = async function() {
+            if (!selectedSubjectForStudents) return;
+            const checkboxes = document.querySelectorAll('.sub-student-chk:checked');
+            const enrolledStudents = Array.from(checkboxes).map(c => c.value);
 
-            if (selectedSubs.length === 0 || selectedStus.length === 0) {
-                alert('Musíte vybrat alespoň jeden předmět a alespoň jednoho žáka!');
-                return;
-            }
+            let data = await getData();
+            if (!data.subjectStudents) data.subjectStudents = {};
+            data.subjectStudents[selectedSubjectForStudents] = enrolledStudents;
 
-            const offerId = 'offer_' + Date.now();
-            if (!appData.offers) appData.offers = {};
-            
-            appData.offers[offerId] = {
-                subjects: selectedSubs,
-                students: selectedStus,
-                completedBy: [] // seznam žáků, kteří nabídku kompletně prošli a ukončili
-            };
-
-            saveToFirebase();
-            alert('Nabídka byla vytvořena a odeslána vybraným žákům!');
-            e.target.reset();
-            renderAdminOfferFormOptions();
-            renderAdminOffersList();
-        }
-
-        function renderAdminOffersList() {
-            const container = document.getElementById('admin-offers-list');
-            if (!container) return;
-            container.innerHTML = '';
-            const offers = appData.offers || {};
-
-            if (Object.keys(offers).length === 0) {
-                container.innerHTML = '<p class="text-slate-500">Žádné aktivní nabídky.</p>';
-                return;
-            }
-
-            for (let id of Object.keys(offers)) {
-                const o = offers[id];
-                container.innerHTML += `
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-                        <div class="flex justify-between items-center">
-                            <span class="text-xs font-bold text-indigo-600">Předměty: ${o.subjects.join(', ')}</span>
-                            <button onclick="deleteOffer('${id}')" class="text-red-500 hover:text-red-700 text-sm font-semibold">Smazat</button>
-                        </div>
-                        <p class="text-xs text-slate-500">Cíloví žáci: ${o.students.join(', ')}</p>
-                    </div>
-                `;
-            }
-        }
-
-        function deleteOffer(id) {
-            delete appData.offers[id];
-            saveToFirebase();
-            renderAdminOffersList();
-        }
-
-        // Zobrazení nabídek žákovi při přihlášení
-        function checkStudentOffers() {
-            const offers = appData.offers || {};
-            activeOfferList = [];
-
-            // Vyhledat nabídky, které jsou určeny pro tohoto žáka a ještě je nedokončil
-            for (let id of Object.keys(offers)) {
-                const o = offers[id];
-                if (o.students.includes(currentUser.name)) {
-                    if (!o.completedBy || !o.completedBy.includes(currentUser.name)) {
-                        // Přidat předměty z této nabídky do sekvenčního seznamu
-                        o.subjects.forEach(sub => {
-                            activeOfferList.push({ offerId: id, subjectName: sub });
-                        });
-                    }
-                }
-            }
-
-            if (activeOfferList.length > 0) {
-                currentOfferIndex = 0;
-                showOfferModalStep();
-            }
-        }
-
-        function showOfferModalStep() {
-            if (currentOfferIndex >= activeOfferList.length) {
-                // Všechny nabídky prošlé, označit jako dokončené v DB
-                markOffersAsCompleted();
-                document.getElementById('offer-modal').classList.add('hidden');
-                return;
-            }
-
-            const currentItem = activeOfferList[currentOfferIndex];
-            document.getElementById('offer-modal-title').innerText = currentItem.subjectName;
-            
-            // Tlačítko Zpět: na první položce schované nebo neaktivní
-            const backBtn = document.getElementById('offer-btn-back');
-            if (currentOfferIndex === 0) {
-                backBtn.style.opacity = '0.5';
-                backBtn.style.pointerEvents = 'none';
-            } else {
-                backBtn.style.opacity = '1';
-                backBtn.style.pointerEvents = 'auto';
-            }
-
-            // Tlačítko Pokračovat / Ukončit
-            const nextBtn = document.getElementById('offer-btn-next');
-            if (currentOfferIndex === activeOfferList.length - 1) {
-                nextBtn.innerText = 'Ukončit';
-            } else {
-                nextBtn.innerText = 'Pokračovat';
-            }
-
-            document.getElementById('offer-modal').classList.remove('hidden');
-        }
-
-        function nextOfferStep() {
-            currentOfferIndex++;
-            showOfferModalStep();
-        }
-
-        function prevOfferStep() {
-            if (currentOfferIndex > 0) {
-                currentOfferIndex--;
-                showOfferModalStep();
-            }
-        }
-
-        function markOffersAsCompleted() {
-            // Zaznamenat do databáze, že daný žák tyto nabídky viděl a dokončil
-            const offerIdsToComplete = [...new Set(activeOfferList.map(item => item.offerId))];
-            offerIdsToComplete.forEach(id => {
-                if (appData.offers[id]) {
-                    if (!appData.offers[id].completedBy) appData.offers[id].completedBy = [];
-                    if (!appData.offers[id].completedBy.includes(currentUser.name)) {
-                        appData.offers[id].completedBy.push(currentUser.name);
-                    }
-                }
-            });
-            saveToFirebase();
+            await saveData(data);
+            alert(`Přiřazení žáků pro předmět "${selectedSubjectForStudents}" bylo uloženo.`);
         }
     </script>
 </body>
