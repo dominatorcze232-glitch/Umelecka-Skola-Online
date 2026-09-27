@@ -112,6 +112,7 @@
                         <div>
                             <label class="block text-sm font-medium text-slate-600 mb-1">Známka (1-5)</label>
                             <select id="multi-grade-value" class="w-full p-2 border border-slate-300 rounded-lg">
+                                <option value="0">0 (Bez hodnocení)</option>
                                 <option value="1">1 (Výborně)</option>
                                 <option value="2">2 (Chvalitebně)</option>
                                 <option value="3">3 (Dobře)</option>
@@ -176,8 +177,9 @@
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1">Stav / Značka absence</label>
                         <select id="absence-status-val" class="w-full p-2 border border-slate-300 rounded-lg">
-                            <option value="/"> / (Přítomen / Omluven)</option>
-                            <option value="O"> O (Absence / Zameškaná hodina)</option>
+                            <option value="/"> / (Přítomen/Přítomna)</option>
+                            <option value="O"> O (Zameškaná hodina)</option>
+                            <option value="/"> <> (Bez možnosti se dostavit na hodinu)</option>
                         </select>
                     </div>
                     <div>
